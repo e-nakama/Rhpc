@@ -1,0 +1,28 @@
+include ${MKCONF}
+R_HOME = @R_HOME@
+CP = cp
+CHMOD = chmod
+PKG_CFLAGS=@MPI_CFLAGS@ @RCMDCONFIGCPPFLAGS@
+PKG_LIBS=$(LIBR) @MPI_LDFLAGS@ @RCMDCONFIGLDFLAGS@
+SOURCES_C=RhpcWorker.c RhpcWorkerSerialize.c
+OBJECTS=$(SOURCES_C:.c=.o)
+
+
+all:	RhpcWorker
+	$(CHMOD) ugo+x Rhpc
+	$(CHMOD) ugo+x RhpcSpawn
+	$(CP) -p Rhpc       $(R_PACKAGE_DIR)
+	$(CP) -p RhpcSpawn  $(R_PACKAGE_DIR)
+	$(CP) -p RhpcWorker $(R_PACKAGE_DIR)
+
+RhpcWorker: $(OBJECTS)
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(OBJECTS) -o $@ $(PKG_LIBS)
+
+RhpcWorker.o: RhpcWorker.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
+
+RhpcSerialize.o: RhpcWorkerSerialize.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
+
+clean:
+	@rm -f RhpcWorker $(OBJECTS)

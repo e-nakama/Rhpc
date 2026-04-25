@@ -1,0 +1,24 @@
+SUBDIRS = worker 
+PKG_CFLAGS=@MPI_CFLAGS@
+PKG_LIBS=@MPI_LDFLAGS@
+
+SOURCES_C = RhpcMPI.c RhpcSerialize.c registerDynamicSymbol.c
+OBJECTS = $(SOURCES_C:.c=.o)
+MKCONF = $(R_HOME)/etc${R_ARCH}/Makeconf
+
+all: $(SHLIB) subdirs
+
+clean: subdirsclean
+	@-rm -f $(OBJECTS) $(SHLIB)
+
+subdirs: subdirsclean
+	@for d in $(SUBDIRS); do \
+		(cd $${d} && MKCONF="$(MKCONF)" $(MAKE) )|| exit 1;\
+	done
+
+subdirsclean:
+	@for d in $(SUBDIRS); do \
+		(cd $${d} && MKCONF="$(MKCONF)" $(MAKE) clean)|| exit 1; \
+	done
+
+

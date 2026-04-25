@@ -1,0 +1,99 @@
+#!/bin/sh
+
+WORKER_PATH=@MY_PACKAGE_DIR@
+R_HOME=@R_HOME@
+R_ARCH=@R_ARCH@
+USE_RHPC=TRUE
+export USE_RHPC
+export R_HOME
+export R_ARCH
+
+# OpenMPI 1.3 or later
+if	test ! -z "${OMPI_COMM_WORLD_RANK}" ; then
+	if test "${OMPI_COMM_WORLD_RANK}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# OpenMPI 1.2 or derivatives
+elif	test ! -z "${OMPI_MCA_ns_nds_vpid}" ; then
+	if test "${OMPI_MCA_ns_nds_vpid}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# Fujitsu-MPI
+elif	test ! -z "${GMP_PPID}" ; then
+	if test "${GMP_PPID}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# HP-MPI
+elif	test ! -z "${MPI_RANKID}" ; then
+	if test "${MPI_RANKID}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# IBM-PE
+elif	test ! -z "${MP_CHILD}" ; then
+	if test "${MP_CHILD}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# MP_RANK
+elif	test ! -z "${MP_RANK}" ; then
+	if test "${MP_RANK}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# MVAPICH 1.1
+elif	test ! -z "${MPIRUN_RANK}" ; then
+	if test "${MPIRUN_RANK}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# LAM-MPI
+elif	test ! -z "${LAMRANK}" ; then
+	if test "${LAMRANK}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# MPICH 2 and derivatives
+elif	test ! -z "${PMI_RANK}" ; then
+	if test "${PMI_RANK}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# SLURM PMI
+elif	test ! -z "${PMI_ID}" ; then
+	if test "${PMI_ID}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+# SLURM
+elif	test ! -z "${SLURM_PROCID}" ; then
+	if test "${SLURM_PROCID}" -eq 0 ; then
+		exec ${R_HOME}/bin/R --no-save $*
+	else
+		. "${R_HOME}/etc${R_ARCH}/ldpaths"
+		exec ${WORKER_PATH}/RhpcWorker
+	fi
+fi

@@ -1,0 +1,10 @@
+#!/bin/sh
+
+WORKER_PATH=@MY_PACKAGE_DIR@
+R_HOME=@R_HOME@
+R_ARCH=@R_ARCH@
+export R_HOME
+export R_ARCH
+
+. "${R_HOME}/etc${R_ARCH}/ldpaths"
+exec ${WORKER_PATH}/RhpcWorker

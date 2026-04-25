@@ -1,0 +1,22 @@
+@echo off
+set ARCH=@@ARCH@@
+set R_HOME=%~f1
+set WORKER_PATH=%~f2
+
+if "%ARCH%"=="64" goto L_64
+if "%ARCH%"=="32" goto L_32
+goto L_RUN
+
+:L_64
+set R_ARCH=\x64
+goto L_RUN
+
+:L_32
+set R_ARCH=\i386
+goto L_RUN
+
+:L_RUN
+
+set PATH=%R_HOME%\bin%R_ARCH%;%PATH%;%USERPROFILE%
+%WORKER_PATH%
+exit 0

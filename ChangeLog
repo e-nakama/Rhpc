@@ -1,0 +1,108 @@
+0.21-244	* fix compilation warnings.
+
+0.19-276	* Patching the latest environment from Jeroen Ooms san!.
+		* Fix overrun problem with strncpy
+	        * fix StageInstall
+
+0.18-204	* Fixed memory leaks in Rhpc_lapply on worker,
+	          Report from Ott Toomet
+
+0.18-187        * Change format from xdr to binary
+
+0.18-185	* Change format from binary to xdr
+	        * Serialize version follows the environment
+	          variable R_DEFAULT_SERIALIZE_VERSION
+		* tweak option("Rhpc.mpiexec")
+
+0.18-12         * Add function Rhpc_serialize_onlysize and
+	          Rhpc_serialize_norealloc.
+	        * Bug fix...>_<
+
+0.18-11		* The argument usequote was added.
+	          Everything was quoted before, but this time added
+	          it as an argument so that user can choose
+ 	          usequpte=FALSE for performance improvement.
+	        * Fixed a PROTECT bug...
+	        * Remove diagnostic pragma
+
+0.17-353	* support MPI_Comm_Spawn for MS-MPI v8.1.
+                * MPI_COMM_SPAWN of MS-MPI must be executed on the master
+		  executed under mpiexec. Rhpc added a mechanism to execute
+		  mpiexec secretly in the back end to prepare the MPI
+		  environment even if the user does not execute mpiexec.
+	        * Reusing some memory.
+	        * Elimination of warning.
+		* Fixed problem libR in worker link.
+		* Tomas Kalibera investigated and reported (politely and
+		  patiently ^^;) the problem of libR link.
+
+0.15-244	* change NUL device to /dev/null in Makevers.win.
+
+0.15-243	* Add keep names attribute.
+		* Pmit serialize mode and MPI sync mode.
+
+0.15-238	* Increased the split size in openib number of segments issues.
+		* Add function Rhpc_sapply,Rhpc_sapplyLB and Rhpc_apply.
+
+0.15-212	* Fixed broken protected bug.
+
+0.15-177	* Diet communication for Rhpc_lapply
+
+0.15-176	* Support add on Solaris, FreeBSD
+		* Support add other GUI for windows
+
+0.15-162	* Removed `$(RM)' in Makefile.in
+
+0.15-154	* tweak batch for Windows
+
+0.15-153	* Add trick AC_LINK_IFELSE on gcc-4.8.
+
+0.15-147	* Removed of drive problem.
+
+0.15-146	* repair Makevars.win and Makefine.win
+
+0.15-145	* Windows of support by experimental MS-MPI.
+
+0.15-55		* omit getenv.
+
+0.15-30		* forget export environment R_HOME and R_ARCH.
+
+0.14-359	* replace deprecated(MPI-1) function.
+
+0.14-272	* fixed problem MPICH.
+
+0.14-261	* optimization of the library reload of openmpi...
+                * old version reloaded on worker. but it was not need.
+                * get to path of RhpcSpawn at execution on master.
+
+0.14-260	* ripair configure script...
+
+0.14-256	* revert maintainer name...>_<
+
+0.14-255	* remediation of cofigure script.
+		* wrote import function from parallel in NAMESPACE.
+		* addition of some documents.
+		* changed name author and maintainer.
+
+0.14-156        * change of schedule(send each time) of Rhpc_lapply.
+		* rename Rhpc_worker_noback (used to Rhpc_worker_shy)
+
+0.14-78         * fixed mistake MPI_Comm_c2f was calld after MPI_Finalize.
+		* change of schedule(last send only) of Rhpc_lapply.
+
+0.14-72 	* add configure option --with-package-dir.
+		* fixed problem on i386.
+		* schedule change from SCHED_OTHER to SCHED_FIFO.
+		* add Rhpc.mpi.rank and Rhpc.mpi.procs set to options.
+		* add Rhpc.mpi.c.comm and Rhpc.mpi.f.comm set to options.
+		* add sched_getscheduler function check.
+
+0.13-343.05	* fixed date and version in DESCRIPTION.
+
+0.13-339.16	* fitted as much as possible by C90.
+
+0.13-338.13	* remove rpath in linking time.
+
+0.13-339.13	* added SystemRequirements: libR, GNU make in DESCRIPTION file.
+
+0.13-337.11	* disused rlecuyer, use a RNGstream from lecuyer in parallel package.

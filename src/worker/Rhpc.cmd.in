@@ -1,0 +1,70 @@
+@echo off
+set ARCH=@@ARCH@@
+rem ##### if you wanna fixed
+rem ##### default is phisical cores
+rem set NPROCS=
+rem ##### OpenMP
+set OMP_NUM_THREADS=1
+rem ##### default from registory
+rem set R_HOME="C:\Program Files\R\R-3.2.0patched"
+rem ##### default from registory
+rem set R_VER=3.2.0
+rem ##### remember R_VER if you set to R_HOME
+
+
+
+rem ================== calc NPROCS
+if "%NPROCS%"=="" set NPROCS=0
+if "%NPROCS%"=="0" for /f "tokens=2 delims==" %%i in ('wmic CPU get NumberOfCores /value ^| findstr NumberOfCores' ) do set /a NPROCS+=%%i
+if "%NPROCS%"=="0" set NPROCS=%NUMBER_OF_PROCESSORS%
+
+if "%ARCH%" == "64" goto L_64
+if "%ARCH%" == "32" goto L_32
+goto L_WARN
+:L_64
+set R_ARCH=\x64
+set HKEY="HKEY_LOCAL_MACHINE\SOFTWARE\R-core\R64"
+goto L_RUN
+:L_32
+set R_ARCH=\i386
+set HKEY="HKEY_LOCAL_MACHINE\SOFTWARE\R-core\R"
+goto L_RUN
+
+:L_RUN
+
+rem ================= R_HOME
+if "%R_HOME%"=="" for /f "tokens=1,2,*"  %%i in ('reg query "%HKEY%" /v "InstallPath"'    ) do if "%%i"=="InstallPath" set R_HOME=%%k
+
+rem ================= R_VER (x.x.x)
+if "%R_VER%"=="" for /f "tokens=1,2,3,*" %%i in ('reg query "%HKEY%" /v "Current Version"') do if "%%i"=="Current" if "%%j"=="Version" set R_VER=%%l
+
+rem ================= calc R_REL (x.x)
+for /f "tokens=1,2 delims=." %%i in ("%R_VER%") do set R_REL=%%i.%%j
+
+rem ================= R_HOME trim lastspace
+if "%R_HOME:~-1%"==" " set R_HOME=%R_HOME:~0,-1%
+
+rem ================= MASTER
+set RHPCMASTER=%R_HOME%\bin\R.exe
+
+rem ================= WORKER
+if exist "%USERPROFILE%\Documents\R\win-library\%R_REL%\Rhpc" set RHPCWORKER=%USERPROFILE%\Documents\R\win-library\%R_REL%\Rhpc\RhpcWorker%ARCH%.exe
+if "%RHPCWORKER%"=="" if exist "%R_HOME%\library\Rhpc" set RHPCWORKER=%R_HOME%\library\Rhpc\RhpcWorker%ARCH%.exe
+
+
+:L_CAL
+rem #### calcs number of workers
+set /a NWORKER=%NPROCS%-1
+
+if not exist "%RHPCMASTER%" goto L_WARN
+if not exist "%RHPCWORKER%" goto L_WARN
+
+rem !!!black magic 1!!! not good last PATH string '\', add safe path USERPROFILE...
+rem !!!black magic 2!!! master start wanna CMD /C wrap.
+mpiexec -env PATH "%R_HOME%\bin%R_ARCH%;%PATH%;%USERPROFILE%" -n 1 CMD /C "%RHPCMASTER%" --arch %ARCH% %1 %2 %3 %4 %5 %6 %7 %8 %9 : -env PATH "%R_HOME%\bin%R_ARCH%;%PATH%;%USERPROFILE%" -n %NWORKER% "%RHPCWORKER%" 
+goto L_END
+
+:L_WARN
+echo "sorry can't run Rhpc."
+
+:L_END
