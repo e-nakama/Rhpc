@@ -1,6 +1,6 @@
 /*
     Rhpc : R HPC environment
-    Copyright (C) 2012-2018  Junji NAKANO and Ei-ji Nakama
+    Copyright (C) 2012-2026 Ei-ji Nakama and Junji NAKANO
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -16,15 +16,30 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef RHPC_COMMON_H
+#define RHPC_COMMON_H
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include <mpi.h>
+#include <R.h>
+#include <Rinternals.h>
+#include <R_ext/Utils.h>
+#include <R_ext/RS.h>
+#include <R_ext/Rdynload.h>
+#include <R_ext/Parse.h>
+
 #ifdef HAVE_SCHED_H
 #include <sched.h>
 #endif
 
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
+#if defined(HAVE_UNISTD_H) || !defined(WIN32)
 #include <unistd.h>
 #endif
 
@@ -42,7 +57,7 @@ struct timeval ts,te;
 #else
 #define GETTIME(x)
 #define TMPRINT(fmt)
-__inline static void DPRINT(char *fmt,...)
+static inline void DPRINT(char *fmt,...)
 {
   va_list arg;  
   if(0){
@@ -56,7 +71,7 @@ __inline static void DPRINT(char *fmt,...)
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
-__inline static int mydladdr( int(*mpiinit)(int*,char***), Dl_info *info){
+static inline int mydladdr( int(*mpiinit)(int*,char***), Dl_info *info){
   int rc;
   int (*__mydladdr)(int(*)(int*,char***), Dl_info *) = NULL;
   void *dlh =NULL;
@@ -68,19 +83,19 @@ __inline static int mydladdr( int(*mpiinit)(int*,char***), Dl_info *info){
 }
 #endif
 
-__inline static int _M(int _X)
+static inline int _M(int _X)
 {
   int  _ec = _X;
   int  _el = 0;
   char _em[MPI_MAX_ERROR_STRING];
   if ( MPI_SUCCESS != _ec ){
-    MPI_Error_string(_ec, _em, &_el);
-    error(_em);
+    MPI_Error_string(_ec, _em, &_el); // MPIエラーメッセージを取得
+    error("%s", _em);
   }
   return _ec;
 }
 
-__inline static SEXP _CHK(SEXP _X)
+static inline SEXP _CHK(SEXP _X)
 {
   SEXP ret = _X;
   R_xlen_t errcnt=0;
@@ -104,10 +119,10 @@ __inline static SEXP _CHK(SEXP _X)
     UNPROTECT(2);
   }
   if(errcnt==1){
-    error( "one remote produced an error: %s\n%s\n", msg, call);
+    error("one remote produced an error: %s\n%s\n", msg, call);
     ret = R_UnboundValue;
   }else if (errcnt>1){
-    error( "%d remote produced an errors; first error: %s\n%s\n", errcnt, msg, call);
+    error("%ld remote produced an errors; first error: %s\n%s\n", (long)errcnt, msg, call);
     ret = R_UnboundValue;
   }
   UNPROTECT(1);
@@ -119,6 +134,11 @@ SEXP Rhpc_serialize(SEXP);
 SEXP Rhpc_serialize_onlysize(SEXP);
 SEXP Rhpc_serialize_norealloc(SEXP);
 SEXP Rhpc_unserialize(SEXP);
+SEXP Rhpc_enquote(SEXP arg);
+SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum);
+
+#define SXP2COMM(x) (*((MPI_Comm*)R_ExternalPtrAddr(x)))
+#define SXP2COMMP(x) ((MPI_Comm*)R_ExternalPtrAddr(x))
 
 #if !defined(WORKER) /* master only */
 static char RHPC_WORKER_CMD[4096];
@@ -153,7 +173,7 @@ enum POS_NAME{
   CMD_QUO
 };
 
-__inline static void SET_CMD(int *cmd, int m, int s, R_xlen_t cnt, R_xlen_t mod, int usequote)
+static inline void SET_CMD(int *cmd, int m, int s, R_xlen_t cnt, R_xlen_t mod, int usequote)
 {
   cmd[CMD_MAIN]=m;
   cmd[CMD_SUB]=s;
@@ -162,14 +182,14 @@ __inline static void SET_CMD(int *cmd, int m, int s, R_xlen_t cnt, R_xlen_t mod,
   cmd[CMD_QUO]=usequote;
 }
 
-__inline static void GET_CMD(int *cmd, int *m, int *s, R_xlen_t *cnt, R_xlen_t *mod, int *usequote)
+static inline void GET_CMD(int *cmd, int *m, int *s, R_xlen_t *cnt, R_xlen_t *mod, int *usequote)
 {
   *m=cmd[CMD_MAIN];
   *s=cmd[CMD_SUB];
   *cnt=(R_xlen_t)cmd[CMD_CNT];
   *mod=(R_xlen_t)cmd[CMD_MOD];
   *usequote=cmd[CMD_QUO];
-  DPRINT("CMD[%d]:%d:%d:%d:%d:%d\n", getpid(),cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]); 
+  DPRINT("CMD[%d]:%d:%d:%d:%d:%d\n", getpid(),cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
 } 
 
 #if defined(WORKER)
@@ -184,11 +204,18 @@ static int MPI_argc = sizeof(MPI_argv)/sizeof(char*);
 static char *MPI_argv[1]={"R"};
 static int MPI_argc = 1;
 #endif
+extern int MYSCHED;
+extern int initialize;
+extern int finalize;
+extern int MPI_rank;
+extern int MPI_procs;
+extern MPI_Comm RHPC_Comm;
 
-#ifndef MYSCHED
-int MYSCHED;
+#if defined(WORKER)
+extern SEXP Rhpc_docall;
 #endif
-__inline static void push_policy(void)
+
+static inline void push_policy(void)
 {
 #if (defined(_POSIX_PRIORITY_SCHEDULING) && defined(HAVE_SCHED_GETSCHEDULER))
   struct sched_param sp;
@@ -204,7 +231,7 @@ __inline static void push_policy(void)
   MYSCHED = 1;
 #endif /* _POSIX_PRIORITY_SCHEDULING */
 }
-__inline static void pop_policy(void)
+static inline void pop_policy(void)
 {
 #if (defined(_POSIX_PRIORITY_SCHEDULING) && defined(HAVE_SCHED_GETSCHEDULER))
   struct sched_param sp;
@@ -220,18 +247,17 @@ __inline static void pop_policy(void)
 #endif /* _POSIX_PRIORITY_SCHEDULING */
 }
 
-#include <R_ext/Parse.h>
 static void op_comm_free(SEXP com)
 {
   void *ptr;
   if (TYPEOF(com) != EXTPTRSXP)
-    error("not external pointer");
+    error("%s", "not external pointer");
   ptr = R_ExternalPtrAddr(com);
-  Free(ptr);
+  R_Free(ptr);
 }
 
 #define RHPC_MSG_BUF 256
-__inline static void Rhpc_set_options(int rank, int procs, MPI_Comm ccomm)
+static inline void Rhpc_set_options(int rank, int procs, MPI_Comm ccomm)
 {
   SEXP op_ex;
   SEXP op_nm;
@@ -248,16 +274,16 @@ __inline static void Rhpc_set_options(int rank, int procs, MPI_Comm ccomm)
   char host_name[MPI_MAX_PROCESSOR_NAME]="";
   int  host_name_len;
 
-  PROTECT(p_options=install("options"));
+  PROTECT(p_options = install("options"));
 
   
-  if(rank != -1){
+  if(rank != -1 && procs > 0){
     char *recvbuf = NULL;
     char sendbuf[RHPC_MSG_BUF];
     f_comm=MPI_Comm_c2f(ccomm);
-    MPI_Get_processor_name(host_name, &host_name_len);
+    _M(MPI_Get_processor_name(host_name, &host_name_len));
 
-    if(rank==0) recvbuf=Calloc(RHPC_MSG_BUF*procs, char);
+    if(rank==0) recvbuf=R_Calloc(RHPC_MSG_BUF*procs, char);
 
     snprintf(sendbuf, RHPC_MSG_BUF,
 	     "%5d/%5d(%11d) : %-32.32s : %5d\n",
@@ -272,12 +298,12 @@ __inline static void Rhpc_set_options(int rank, int procs, MPI_Comm ccomm)
       for(i=0; i<procs; i++){
 	Rprintf("%s", recvbuf + (i*RHPC_MSG_BUF)); 
       }
-      Free(recvbuf);
+      R_Free(recvbuf);
     }
 
     PROTECT(p_rank = ScalarInteger(rank));
     PROTECT(p_procs= ScalarInteger(procs));
-    ptr = Calloc(1,MPI_Comm);
+    ptr = R_Calloc(1, MPI_Comm);
     PROTECT(p_ccomm = R_MakeExternalPtr(ptr, R_NilValue, R_NilValue));
     *((MPI_Comm*)R_ExternalPtrAddr(p_ccomm)) = ccomm;
     R_RegisterCFinalizer(p_ccomm, op_comm_free);
@@ -346,3 +372,5 @@ static void STR(SEXP _x)
 }
 
 #endif
+
+#endif /* RHPC_COMMON_H */

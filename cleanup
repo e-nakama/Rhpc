@@ -11,6 +11,7 @@ rm -f src/symbols.rds
 rm -f man/*~
 rm -f src/Makevars
 rm -f src/common/*~
+rm -f src/common/*.o
 rm -f src/common/config.h
 rm -f src/worker/*.exe
 rm -f src/worker/*.o

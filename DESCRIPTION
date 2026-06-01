@@ -1,8 +1,15 @@
 Package: Rhpc
-Version: 0.21-247
-Date: 2021-09-04
+Version: 0.26-1
+Date: 2026-06-02
 Title: Permits *apply() Style Dispatch for 'HPC'
-Author: Junji NAKANO <nakanoj@ism.ac.jp> and Ei-ji Nakama <nakama@ki.rim.or.jp>
+Authors@R: c(person(given = "Ei-ji",
+                    family = "Nakama",
+                    role = c("aut", "cre"),
+                    email = "nakama@ki.rim.or.jp"),
+             person(given = "Junji",
+                    family = "NAKANO",
+                    role = "aut",
+                    email = "nakanoj@ism.ac.jp"))
 Maintainer: Ei-ji Nakama <nakama@ki.rim.or.jp>
 Depends: R (>= 3.0.0)
 Imports: parallel
@@ -11,9 +18,6 @@ SystemRequirements: R built as a shared or static library, 'MPI'
 Description: Function of apply style using 'MPI' provides better 'HPC' environment on R.
  And this package supports long vector, can deal with slightly big data.
 License: AGPL-3
-URL: https://prs.ism.ac.jp/~nakama/Rhpc/
+URL: https://github.com/e-nakama/Rhpc
 ByteCompile: true
 NeedsCompilation: yes
-Packaged: 2021-09-04 02:49:58 UTC; nakama
-Repository: CRAN
-Date/Publication: 2021-09-04 08:30:05 UTC

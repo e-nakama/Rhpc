@@ -1,10 +1,10 @@
 /*
     Rhpc : R HPC environment
-    Copyright (C) 2012-2018  Junji NAKANO and Ei-ji Nakama
+    Copyright (C) 2012-2026 Ei-ji Nakama and Junji NAKANO
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License,
+    the R_Free Software Foundation, either version 3 of the License,
     any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -15,6 +15,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #ifndef WIN32
 #include "../common/config.h"
 #else
@@ -24,14 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_DLADDR
-#  ifndef   _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-#  ifndef   __USE_GNU
-#    define __USE_GNU
-#  endif
-#endif
 #ifndef WIN32
 #include <dlfcn.h>
 #endif
@@ -62,15 +58,19 @@ extern int putenv(char *string);
 */
 
 #include "../common/Rhpc.h"
-#include "../common/Rhpc_ms.h"
 
-static int initialize = 0;
+/* Define global variables without static to share with other units */
+int initialize = 0;
+int finalize = 0; /* Unused in worker but declared in Rhpc.h */
+int MPI_rank = -1;
+int MPI_procs = -1;
+MPI_Comm RHPC_Comm;
+SEXP Rhpc_docall = NULL;
+int MYSCHED;
 
-static int MPI_rank=-1;
-static int MPI_procs=-1;
-
-static MPI_Comm RHPC_Comm;
-
+#include "RhpcWorker_LapplyLB.h"
+#include "RhpcWorker_Lapplyseq.h"
+#include "RhpcWorker_WorkerCall.h"
 
 static void Rhcp_worker_finalize(void)
 {
@@ -81,8 +81,6 @@ static void Rhcp_worker_finalize(void)
 
 extern Rboolean R_Interactive;  /* TRUE during interactive use*/
 extern Rboolean R_Slave;        /* Run as a slave process */
-
-static SEXP Rhpc_docall = NULL;
 
 static void Rhpc_worker_init(void)
 {
@@ -184,10 +182,6 @@ static void Rhpc_worker_init(void)
   */
 
 }
-
-#include "RhpcWorker_LapplyLB.h"
-#include "RhpcWorker_Lapplyseq.h"
-#include "RhpcWorker_WorkerCall.h"
 
 static void Rhpc_worker_main(void){
   int  cmd[CMDLINESZ];

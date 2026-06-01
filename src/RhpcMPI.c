@@ -1,6 +1,6 @@
 /*
     Rhpc : R HPC environment
-    Copyright (C) 2012-2018  Junji NAKANO and Ei-ji Nakama
+    Copyright (C) 2012-2026 Ei-ji Nakama and Junji NAKANO
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
@@ -16,6 +16,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 
 #ifndef WIN32
 #include "common/config.h"
@@ -25,14 +28,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-#ifdef HAVE_DLADDR
-#  ifndef   _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-#  ifndef   __USE_GNU
-#    define __USE_GNU
-#  endif
-#endif
 
 #ifndef WIN32
 #include <dlfcn.h>
@@ -45,18 +40,23 @@
 #include <Rinternals.h>
 #include "common/Rhpc.h"
 
+#include "RhpcMPIlapplyLB.h"
+#include "RhpcMPIlapplyseq.h"
+#include "RhpcMPIWorkerCall.h"
+
 #ifdef WIN32
 #include "common/fakemaster.h"
 #include <windows.h>
 #endif
 
-static int initialize=0;
-static int finalize=0;
+int initialize=0;
+int finalize=0;
+int MYSCHED;
 
-static int MPI_rank = 0;
-static int MPI_procs = 0;
+int MPI_rank = 0;
+int MPI_procs = 0;
 
-static MPI_Comm RHPC_Comm = MPI_COMM_NULL;
+MPI_Comm RHPC_Comm = MPI_COMM_NULL;
 
 /* fake master */
 #ifdef WIN32
@@ -310,13 +310,10 @@ static void comm_free(SEXP com)
 {
   void *ptr;
   if (TYPEOF(com) != EXTPTRSXP)
-    error("not external pointer");
+    error("%s", "not external pointer");
   ptr = R_ExternalPtrAddr(com);
-  Free(ptr);
+  R_Free(ptr);
 }
-
-#define SXP2COMM(x) *((MPI_Comm*)R_ExternalPtrAddr(x))
-#define SXP2COMMP(x) ((MPI_Comm*)R_ExternalPtrAddr(x))
 
 SEXP Rhpc_gethandle(SEXP procs)
 {
@@ -347,7 +344,7 @@ SEXP Rhpc_gethandle(SEXP procs)
  
   num_procs = INTEGER (procs)[0];
 
-  ptr = Calloc(1,MPI_Comm);
+  ptr = R_Calloc(1, MPI_Comm);
   PROTECT(com = R_MakeExternalPtr(ptr, R_NilValue, R_NilValue));
   R_RegisterCFinalizer(com, comm_free);
   SXP2COMM(com) = RHPC_Comm;
@@ -470,7 +467,7 @@ SEXP Rhpc_number_of_worker(SEXP cl)
   int procs;
 
   if(TYPEOF(cl)!=EXTPTRSXP){
-    error("it's not MPI_Comm external pointer\n");
+    error("%s", "it's not MPI_Comm external pointer\n");
   }
   comm = SXP2COMM(cl);
 
@@ -489,10 +486,3 @@ SEXP Rhpc_number_of_worker(SEXP cl)
   UNPROTECT(1);
   return(num);
 }
-
-#include "common/Rhpc_ms.h"
-#include "RhpcMPIlapplyLB.h"
-#include "RhpcMPIlapplyseq.h"
-#include "RhpcMPIWorkerCall.h"
-
-

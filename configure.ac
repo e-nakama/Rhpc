@@ -1,25 +1,24 @@
 AC_PREREQ(2.62)
 AC_INIT(Rhpc, 0.18, nakama@ki.rim.or.jp)
 
-AC_CONFIG_HEADER(src/common/config.h)
+AC_CONFIG_HEADERS([src/common/config.h])
 
 AC_CHECK_HEADERS([sched.h sys/types.h unistd.h dlfcn.h])
 AC_CHECK_FUNCS([sched_getscheduler])
 
 AC_MSG_CHECKING(for dladdr)
-AC_TRY_COMPILE(
-  [
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([[
 #define _GNU_SOURCE
 #include <dlfcn.h>
-  ],[
+  ]], [[
 Dl_info* info = 0;
 dladdr(0, info);  
-  ],[
-AC_DEFINE([HAVE_DLADDR],[1],[this system have a dladdr in dlfcn.h])
-AC_MSG_RESULT(yes)
-  ],[
-AC_MSG_RESULT(no)
-  ])
+  ]])],
+  [AC_DEFINE([HAVE_DLADDR],[1],[this system have a dladdr in dlfcn.h])
+   AC_MSG_RESULT(yes)],
+  [AC_MSG_RESULT(no)]
+)
 
 R_HOME=`echo ${R_HOME}`
 
@@ -45,28 +44,28 @@ CFLAGS=`${R_HOME}/bin${R_ARCH}/R CMD config CFLAGS 2>/dev/null`
 LDFLAGS=`${R_HOME}/bin${R_ARCH}/R CMD config LDFLAGS 2>/dev/null`
 
 AC_ARG_WITH(mpicc,
-    AC_HELP_STRING([--with-mpicc=MPI_C_WRAPPER_COMPILER],
+    AS_HELP_STRING([--with-mpicc=MPI_C_WRAPPER_COMPILER],
                    [MPI C wrapper compiler name or C compiler name.]),
 [   if test "${withval}x" != x; then
          MPICC=${withval}
     fi  ]	
 )
 AC_ARG_WITH(mpi-cflags,
-    AC_HELP_STRING([--with-mpi-cflags=ARGS],
+    AS_HELP_STRING([--with-mpi-cflags=ARGS],
                    [MPI CFLAGS.(cf. "-I/usr/include/openmpi")]),
 [   if test "${withval}x" != x; then
          MPI_CFLAGS=${withval}
     fi  ]	
 )
 AC_ARG_WITH(mpi-ldflags,
-    AC_HELP_STRING([--with-mpi-ldflags=ARGS],
+    AS_HELP_STRING([--with-mpi-ldflags=ARGS],
                    [MPI LDFLAGS.(cf. "-L/usr/lib/openmpi -lmpi")]),
 [   if test "${withval}x" != x; then
          MPI_LDFLAGS=${withval}
     fi  ]	
 )
 AC_ARG_WITH(package-dir,
-    AC_HELP_STRING([--with-package-dir=DIR],
+    AS_HELP_STRING([--with-package-dir=DIR],
                    [Top directory of Rhpc package. hard code does the worker-path with the shell in Rhpc and RhpcSpawn. (maybe need binary package build of distribution)]),
 [   if test "${withval}x" != x; then
         MY_PACKAGE_DIR=${withval}
@@ -157,5 +156,5 @@ AC_SUBST(RCMDCONFIGCPPFLAGS)
 AC_SUBST(MY_PACKAGE_DIR)
 AC_SUBST(R_PACKAGE_DIR)
 
-AC_OUTPUT(src/Makevars src/worker/Makefile src/worker/Rhpc src/worker/RhpcSpawn)
-
+AC_CONFIG_FILES([src/Makevars src/common/Makefile src/worker/Makefile src/worker/Rhpc src/worker/RhpcSpawn])
+AC_OUTPUT

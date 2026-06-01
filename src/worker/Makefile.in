@@ -2,9 +2,10 @@ include ${MKCONF}
 R_HOME = @R_HOME@
 CP = cp
 CHMOD = chmod
-PKG_CFLAGS=@MPI_CFLAGS@ @RCMDCONFIGCPPFLAGS@
+PKG_CFLAGS=-I.. -I../common @MPI_CFLAGS@ @RCMDCONFIGCPPFLAGS@
 PKG_LIBS=$(LIBR) @MPI_LDFLAGS@ @RCMDCONFIGLDFLAGS@
-SOURCES_C=RhpcWorker.c RhpcWorkerSerialize.c
+SOURCES_C=RhpcWorker.c RhpcWorker_LapplyLB.c RhpcWorker_Lapplyseq.c RhpcWorker_WorkerCall.c
+COMMON_OBJS=../common/RhpcSerialize.o ../common/RhpcMS.o
 OBJECTS=$(SOURCES_C:.c=.o)
 
 
@@ -15,13 +16,19 @@ all:	RhpcWorker
 	$(CP) -p RhpcSpawn  $(R_PACKAGE_DIR)
 	$(CP) -p RhpcWorker $(R_PACKAGE_DIR)
 
-RhpcWorker: $(OBJECTS)
-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(OBJECTS) -o $@ $(PKG_LIBS)
+RhpcWorker: $(OBJECTS) $(COMMON_OBJS)
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(OBJECTS) $(COMMON_OBJS) -o $@ $(PKG_LIBS)
 
 RhpcWorker.o: RhpcWorker.c
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
 
-RhpcSerialize.o: RhpcWorkerSerialize.c
+RhpcWorker_LapplyLB.o: RhpcWorker_LapplyLB.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
+
+RhpcWorker_Lapplyseq.o: RhpcWorker_Lapplyseq.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
+
+RhpcWorker_WorkerCall.o: RhpcWorker_WorkerCall.c
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
 
 clean:
