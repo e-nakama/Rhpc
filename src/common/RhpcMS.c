@@ -16,9 +16,9 @@
 #include "config.h"
 #endif
 
+#include "Rhpc.h"
 #include <R.h>
 #include <Rinternals.h>
-#include "Rhpc.h"
 
 SEXP Rhpc_enquote(SEXP arg)
 {

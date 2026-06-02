@@ -36,9 +36,9 @@
 
 #include <mpi.h>
 
+#include "common/Rhpc.h"
 #include <R.h>
 #include <Rinternals.h>
-#include "common/Rhpc.h"
 
 #include "RhpcMPIlapplyLB.h"
 #include "RhpcMPIlapplyseq.h"

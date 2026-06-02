@@ -31,6 +31,8 @@
 #ifndef WIN32
 #include <dlfcn.h>
 #endif
+#define WORKER 1
+#include "../common/Rhpc.h"
 #include <Rembedded.h>
 #ifdef WIN32
 #undef ERROR
@@ -39,8 +41,6 @@
 #ifndef WIN32
 #include <Rinterface.h>
 #endif
-#include <Rinternals.h>
-#include <R_ext/Parse.h>
 
 /* from Jeroen Ooms san! */
 #include <Rversion.h>
@@ -48,16 +48,10 @@
 #define R_Slave R_NoEcho
 #endif
 
-#define WORKER 1
-#include <mpi.h>
-
-/*
 #if !defined(putenv)
 extern int putenv(char *string);
 #endif
-*/
 
-#include "../common/Rhpc.h"
 
 /* Define global variables without static to share with other units */
 int initialize = 0;
@@ -122,7 +116,7 @@ static void Rhpc_worker_init(void)
   }
   
   if( failmpilib ){
-#   ifdef HAVE_DLADDR
+#   if defined(HAVE_DLADDR) && defined(HAVE_DLFCN_H)
       /* maybe get beter soname */
       rc = mydladdr(MPI_Init, &info_MPI_Init);
       if (rc){

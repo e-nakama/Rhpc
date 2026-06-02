@@ -24,10 +24,10 @@
 #include "common/config.h"
 #endif
 
+#include "common/Rhpc.h"
 #include <mpi.h>
 #include <R.h>
 #include <Rinternals.h>
-#include "common/Rhpc.h"
 #include "RhpcMPIlapplyLB.h"
 
 static int Rhpc_mpi_lapply_LB_active_workers(char *workers,int procs)

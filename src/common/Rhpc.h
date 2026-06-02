@@ -23,6 +23,10 @@
 #define _GNU_SOURCE
 #endif
 
+#ifndef USE_RINTERNALS
+#define USE_RINTERNALS
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -69,7 +73,7 @@ static inline void DPRINT(char *fmt,...)
 }
 #endif
 
-#ifdef HAVE_DLFCN_H
+#if defined(HAVE_DLFCN_H) && defined(HAVE_DLADDR)
 #include <dlfcn.h>
 static inline int mydladdr( int(*mpiinit)(int*,char***), Dl_info *info){
   int rc;

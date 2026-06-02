@@ -1,11 +1,11 @@
 /*
  *
- * From R-3.0.2 archive, src/main/serialize.c 
+ * Updated based on r-base-4.6.0, src/main/serialize.c 
  *
  */
 /*
  *  R : A Computer Language for Statistical Data Analysis
- *  Copyright (C) 1995--2013  The R Core Team
+ *  Copyright (C) 1995--2024  The R Core Team
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,30 +24,25 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define USE_INTERNAL
+#define USE_RINTERNALS
 #include <Rinternals.h>
+#include <R_ext/Memory.h>
 
-/* from R-3.5.0  serialize.c */
-static int defaultSerializeVersion()
+/* Based on R 4.x serialization defaults */
+static int defaultSerializeVersion(void)
 {
     static int dflt = -1;
 
     if (dflt < 0) {
-        char *valstr = getenv("R_DEFAULT_SERIALIZE_VERSION");
-        int val = -1;
-        if (valstr != NULL)
-            val = atoi(valstr);
-        if (val == 2 || val == 3)
-            dflt = val;
-        else
-            dflt = 2; /* the default */
+	char *valstr = getenv("R_DEFAULT_SERIALIZE_VERSION");
+	int val = (valstr != NULL) ? atoi(valstr) : 3;
+	if (val >= 2 && val <= 3)
+	    dflt = val;
+	else
+	    dflt = 3; /* the modern default since R 3.5.0 */
     }
     return dflt;
 }
-
-/*
-static const int R_DefaultSerializeVersion = 2;
-*/
 
 /*
  * Persistent Memory Streams
@@ -64,19 +59,14 @@ typedef struct membuf_st {
 static void resize_buffer(membuf_t mb, R_xlen_t needed)
 {
     unsigned char *tmp;
-    if(needed > R_XLEN_T_MAX)
+    if (needed < 0 || needed > R_XLEN_T_MAX)
 	error("serialization is too large to store in a raw vector");
-#ifdef LONG_VECTOR_SUPPORT
-    if(needed < 10000000) /* ca 10MB */
+
+    if (needed < 10000000) /* ca 10MB */
 	needed = (1+2*needed/INCR) * INCR;
     else 
 	needed = (R_xlen_t)((1+1.2*(double)needed/INCR) * INCR);
-#else
-    if(needed < 10000000) /* ca 10MB */
-	needed = (1+2*needed/INCR) * INCR;
-    else if(needed < INT_MAX - INCR)
-	needed = (1+needed/INCR) * INCR;
-#endif
+
     tmp = realloc(mb->buf, needed);
     if (tmp == NULL) {
 	free(mb->buf); mb->buf = NULL;
@@ -90,7 +80,7 @@ static void OutCharMem(R_outpstream_t stream, int c)
     membuf_t mb = stream->data;
     if (mb->count >= mb->size)
 	resize_buffer(mb, mb->count + 1);
-    mb->buf[mb->count++] = (char) c;
+    mb->buf[mb->count++] = (unsigned char) c;
 }
 
 static void OutCharMem_onlysize(R_outpstream_t stream, int c)
@@ -102,7 +92,7 @@ static void OutCharMem_onlysize(R_outpstream_t stream, int c)
 static void OutCharMem_norealloc(R_outpstream_t stream, int c)
 {
     membuf_t mb = stream->data;
-    mb->buf[mb->count++] = (char) c;
+    mb->buf[mb->count++] = (unsigned char) c;
 }
 
 static void OutBytesMem(R_outpstream_t stream, void *buf, int length)
@@ -110,8 +100,7 @@ static void OutBytesMem(R_outpstream_t stream, void *buf, int length)
     membuf_t mb = stream->data;
     R_xlen_t needed = mb->count + (R_xlen_t) length;
 #ifndef LONG_VECTOR_SUPPORT
-    /* There is a potential overflow here on 32-bit systems */
-    if((double) mb->count + length > (double) INT_MAX)
+    if (needed > INT_MAX)
 	error("serialization is too large to store in a raw vector");
 #endif
     if (needed > mb->size) resize_buffer(mb, needed);
@@ -131,8 +120,7 @@ static void OutBytesMem_norealloc(R_outpstream_t stream, void *buf, int length)
     membuf_t mb = stream->data;
     R_xlen_t needed = mb->count + (R_xlen_t) length;
 #ifndef LONG_VECTOR_SUPPORT
-    /* There is a potential overflow here on 32-bit systems */
-    if((double) mb->count + length > (double) INT_MAX)
+    if (needed > INT_MAX)
 	error("serialization is too large to store in a raw vector");
 #endif
     memcpy(mb->buf + mb->count, buf, length);
@@ -143,15 +131,15 @@ static int InCharMem(R_inpstream_t stream)
 {
     membuf_t mb = stream->data;
     if (mb->count >= mb->size)
-	error("read error");
+	error("read error: buffer overflow");
     return mb->buf[mb->count++];
 }
 
 static void InBytesMem(R_inpstream_t stream, void *buf, int length)
 {
     membuf_t mb = stream->data;
-    if (mb->count + (R_xlen_t) length > mb->size)
-	error("read error");
+    if (length > 0 && mb->count + (R_xlen_t) length > mb->size)
+	error("read error: buffer overflow");
     memcpy(buf, mb->buf + mb->count, length);
     mb->count += length;
 }
@@ -245,17 +233,10 @@ SEXP Rhpc_serialize(SEXP object)
     version = defaultSerializeVersion();
     type = R_pstream_binary_format;
 
-
-    /* set up a context which will free the buffer if there is an error */
-    
     InitMemOutPStream(&out, &mbs, type, version, NULL, R_NilValue);
     R_Serialize(object, &out);
-    
     val =  CloseMemOutPStream(&out);
     
-    /* end the context after anything that could raise an error but before
-       calling OutTerm so it doesn't get called twice */
-
     return val;
 }
 
@@ -270,17 +251,10 @@ SEXP Rhpc_serialize_onlysize(SEXP object)
     version = defaultSerializeVersion();
     type = R_pstream_binary_format;
 
-
-    /* set up a context which will free the buffer if there is an error */
-    
     InitMemOutPStream_onlysize(&out, &mbs, type, version, NULL, R_NilValue);
     R_Serialize(object, &out);
-    
     val =  CloseMemOutPStream_onlysize(&out);
     
-    /* end the context after anything that could raise an error but before
-       calling OutTerm so it doesn't get called twice */
-
     return val;  
 }
 
@@ -307,14 +281,8 @@ SEXP Rhpc_serialize_norealloc(SEXP object)
     version = defaultSerializeVersion();
     type = R_pstream_binary_format;
 
-
-    /* set up a context which will free the buffer if there is an error */
-    
     InitMemOutPStream_norealloc(&out, &mbs, type, version, NULL, R_NilValue);
     R_Serialize(object, &out);
-    
-    /* end the context after anything that could raise an error but before
-       calling OutTerm so it doesn't get called twice */
 
     UNPROTECT(2);
     return val;
@@ -328,11 +296,11 @@ SEXP Rhpc_unserialize(SEXP object)
     struct membuf_st mbs;
 
     if(TYPEOF(object) == RAWSXP){
-      void *data = RAW(object);
-      R_xlen_t length = XLENGTH(object);
-      InitMemInPStream(&in, &mbs, data,  length, NULL, NULL);
-      return R_Unserialize(&in);
+	void *data = RAW(object);
+	R_xlen_t length = XLENGTH(object);
+	InitMemInPStream(&in, &mbs, data, length, NULL, NULL);
+	return R_Unserialize(&in);
     }
     error("can't unserialize object");
-    return(R_UnboundValue);
+    return R_UnboundValue;
 }

@@ -19,9 +19,6 @@
 #endif
 
 #define WORKER 1
-#include <mpi.h>
-#include <R.h>
-#include <Rinternals.h>
 #include "../common/Rhpc.h"
 #include "RhpcWorker_WorkerCall.h"
 
@@ -43,7 +40,7 @@ void Rhpc_worker_call(int *cmd, int action)
   PROTECT(l_fun_arg=R_NilValue);
 
   if(action == 2){ /* Export */   
-    PROTECT(fun = findVar(install("assign"),R_BaseEnv));
+    PROTECT(fun = findFun(install("assign"),R_BaseEnv));
     PROTECT(arg = allocVector(VECSXP,3));
     PROTECT(argnm = allocVector(STRSXP,3));
     SET_STRING_ELT(argnm,0,mkChar(""));
@@ -56,10 +53,10 @@ void Rhpc_worker_call(int *cmd, int action)
   }else{
     fun = VECTOR_ELT(fun_arg,0);
     if ( TYPEOF(fun) == STRSXP && xlength(fun)==1 ){
-      SEXP find_fun = findVar(install(CHAR(STRING_ELT(fun,0))), R_GlobalEnv);
+      SEXP find_fun = findFun(install(CHAR(STRING_ELT(fun,0))), R_GlobalEnv);
       if(find_fun != R_UnboundValue) fun = find_fun;
     } else if (TYPEOF(fun) == SYMSXP){
-      SEXP find_fun = findVar(fun, R_GlobalEnv);
+      SEXP find_fun = findFun(fun, R_GlobalEnv);
       if(find_fun != R_UnboundValue) fun = find_fun;
     }
     PROTECT(fun);

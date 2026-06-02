@@ -24,10 +24,10 @@
 #endif
 
 #include <sys/time.h>
+#include "common/Rhpc.h"
 #include <mpi.h>
 #include <R.h>
 #include <Rinternals.h>
-#include "common/Rhpc.h"
 #include "RhpcMPIWorkerCall.h"
 
 SEXP Rhpc_mpi_worker_call(SEXP cl, SEXP args, SEXP actioncode, SEXP usequote)

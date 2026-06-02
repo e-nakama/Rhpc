@@ -24,10 +24,10 @@
 #include "common/config.h"
 #endif
 
+#include "common/Rhpc.h"
 #include <mpi.h>
 #include <R.h>
 #include <Rinternals.h>
-#include "common/Rhpc.h"
 #include "RhpcMPIlapplyseq.h"
 
 static R_xlen_t Rhpc_mpi_lapply_seq_worker_calls(R_xlen_t *calls,int procs)
