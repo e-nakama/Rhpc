@@ -232,37 +232,27 @@ SEXP Rhpc_mpi_initialize(void)
     warning("Rhpc were already finalized.");
     return(R_NilValue);
   }
-  if(initialize){
-    warning("Rhpc were already initialized.");
-    return(R_NilValue);
-  }
-
+  if (initialize) { warning("Rhpc already initialized."); return R_NilValue; }
 
 #if defined(__ELF__)
-  if ( NULL != (dlh=dlopen(NULL, RTLD_NOW|RTLD_GLOBAL))){
-    if(NULL != (dls = dlsym( dlh, "MPI_Init")))
-      failmpilib = 0; /* success loaded MPI library */
-    else
-      failmpilib = 1; /* maybe can't loaded MPI library */
+  if (NULL != (dlh = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL))) {
+    failmpilib = (NULL == dlsym(dlh, "MPI_Init"));
     dlclose(dlh);
   }
 
-  if( failmpilib ){
+  if (failmpilib) {
 #   ifdef HAVE_DLADDR
-    /* maybe get beter soname */
       rc = mydladdr(MPI_Init, &info_MPI_Init);
-      if(rc){
-	Rprintf("reload mpi library %s\n", info_MPI_Init.dli_fname );
-	if(!dlopen(info_MPI_Init.dli_fname, RTLD_GLOBAL | RTLD_LAZY)){
-	  Rprintf("%s\n",dlerror());
-	}
-      }else{
-        Rprintf("Can't get Information by dladdr of function MPI_Init,%s\n",
-		dlerror());
+      if (rc) {
+        Rprintf("Reloading MPI library: %s\n", info_MPI_Init.dli_fname);
+        if (!dlopen(info_MPI_Init.dli_fname, RTLD_GLOBAL | RTLD_LAZY)) {
+            Rprintf("dlopen error: %s\n", dlerror());
+        }
+      } else {
+        Rprintf("dladdr failed for MPI_Init: %s\n", dlerror());
       }
 #   else
-      Rprintf("Can't get Information by dlsym of function MPI_Init,%s\n",
-	      dlerror());
+      Rprintf("dlsym failed for MPI_Init: %s\n", dlerror());
 #   endif
   }
 #endif
@@ -286,8 +276,7 @@ SEXP Rhpc_mpi_initialize(void)
     int  errorOccurred=0;
     SEXP ret;
     SEXP cmdSexp, cmdexpr;
-    ParseStatus status;
-
+    ParseStatus p_status;
     PROTECT(cmdSexp = allocVector(STRSXP, 1));
 #ifdef WIN64
     SET_STRING_ELT(cmdSexp, 0, mkChar("system.file('RhpcSpawnWin64.cmd',package='Rhpc')"));
@@ -296,9 +285,11 @@ SEXP Rhpc_mpi_initialize(void)
 #else
     SET_STRING_ELT(cmdSexp, 0, mkChar("system.file('RhpcSpawn',package='Rhpc')"));
 #endif
-    PROTECT( cmdexpr = R_ParseVector(cmdSexp, -1, &status, R_NilValue));
-    ret=R_tryEval(VECTOR_ELT(cmdexpr,0), R_GlobalEnv, &errorOccurred);
-    strncpy(RHPC_WORKER_CMD, CHAR(STRING_ELT(ret,0)), sizeof(RHPC_WORKER_CMD)-1);
+    PROTECT(cmdexpr = R_ParseVector(cmdSexp, -1, &p_status, R_NilValue));
+    ret = R_tryEval(VECTOR_ELT(cmdexpr, 0), R_GlobalEnv, &errorOccurred);
+    if (errorOccurred || TYPEOF(ret) != STRSXP) error("Failed to resolve Rhpc worker spawn command.");
+    strncpy(RHPC_WORKER_CMD, CHAR(STRING_ELT(ret, 0)), sizeof(RHPC_WORKER_CMD) - 1);
+    RHPC_WORKER_CMD[sizeof(RHPC_WORKER_CMD) - 1] = '\0';
     UNPROTECT(2);
   }
 
@@ -317,75 +308,59 @@ static void comm_free(SEXP com)
 
 SEXP Rhpc_gethandle(SEXP procs)
 {
-  int num_procs;
-  MPI_Comm *ptr;
-  SEXP com;
-  int num;
+  int target_procs;
+  MPI_Comm *comm_ptr;
+  SEXP comm_sexp;
+  int current_size;
   MPI_Comm pcomm;
-  char **argv=MPI_ARGV_NULL;
+  char **argv = MPI_ARGV_NULL;
 #ifdef WIN32
   char *spawn_argv[3];
   char r_home[FAKE_PATH_MAX];
   char target_path[FAKE_PATH_MAX];
 #endif
   
-  if (RHPC_Comm == MPI_COMM_NULL){
-    error("Rhpc_initialize is not called.");
-    return(R_NilValue);
-  }
-  if(finalize){
-    warning("Rhpc were already finalized.");
-    return(R_NilValue);
-  }
-  if(!initialize){
-    warning("Rhpc not initialized.");
-    return(R_NilValue);
-  }
+  if (RHPC_Comm == MPI_COMM_NULL) error("Rhpc_initialize has not been called.");
+  if (finalize) { warning("Rhpc already finalized."); return R_NilValue; }
+  if (!initialize) { warning("Rhpc not initialized."); return R_NilValue; }
  
-  num_procs = INTEGER (procs)[0];
+  target_procs = INTEGER(procs)[0];
 
-  ptr = R_Calloc(1, MPI_Comm);
-  PROTECT(com = R_MakeExternalPtr(ptr, R_NilValue, R_NilValue));
-  R_RegisterCFinalizer(com, comm_free);
-  SXP2COMM(com) = RHPC_Comm;
+  comm_ptr = R_Calloc(1, MPI_Comm);
+  PROTECT(comm_sexp = R_MakeExternalPtr(comm_ptr, R_NilValue, R_NilValue));
+  R_RegisterCFinalizer(comm_sexp, comm_free);
+  SXP2COMM(comm_sexp) = RHPC_Comm;
 
-  if (num_procs == NA_INTEGER){/* use mpirun */
-    _M(MPI_Comm_size(SXP2COMM(com), &num));
-    Rprintf("Detected communication size %d\n", num);
-    if( num > 1 ){
-      if ( num_procs > 0){
-	warning("blind procs argument, return of MPI_COMM_WORLD");
-      }
-    }else{
-      if ( num == 1){
-	warning("only current master process. not found worker process.");
-      }
-      SXP2COMM(com)=MPI_COMM_NULL;
-      warning("please pecifies the number of processes in mpirun or mpiexec, or provide a number of process to spawn");
+  if (target_procs == NA_INTEGER) { /* Use existing World (mpirun) */
+    _M(MPI_Comm_size(SXP2COMM(comm_sexp), &current_size));
+    Rprintf("Detected MPI world size: %d\n", current_size);
+    if (current_size == 1) {
+      warning("No worker processes found. Ensure mpirun was used with -n > 1.");
+      SXP2COMM(comm_sexp) = MPI_COMM_NULL;
     }
     UNPROTECT(1);
-    return(com);
-  }else{ /* spawn */
-    if(num_procs < 1){
-      warning("you need positive number of procs argument");
+    return comm_sexp;
+  } else { /* Spawn dynamically */
+    if (target_procs < 1) {
+      warning("Positive process count required for spawn.");
       UNPROTECT(1);
-      return(com);
+      return comm_sexp;
     }
-    _M(MPI_Comm_size(SXP2COMM(com), &num));
-    if(num > 1){ 
-      warning("blind procs argument, return of last communicator");
+    _M(MPI_Comm_size(SXP2COMM(comm_sexp), &current_size));
+    if (current_size > 1) { 
+      warning("Communicator already expanded. Returning current handle.");
       UNPROTECT(1);
-      return(com);
+      return comm_sexp;
     }
   }
 
 #ifdef WIN32
-  strncpy(r_home, getenv("R_HOME"), sizeof(r_home)-1); 
-  if(1){
-    int  errorOccurred=0;
-    SEXP ret;
-    SEXP cmdSexp, cmdexpr;
-    ParseStatus status;
+  strncpy(r_home, getenv("R_HOME"), sizeof(r_home) - 1);
+  r_home[sizeof(r_home) - 1] = '\0';
+  {
+    int errorOccurred = 0;
+    ParseStatus p_status;
+    SEXP cmdSexp, cmdexpr, ret;
     
     PROTECT(cmdSexp = allocVector(STRSXP, 1));
 #ifdef WIN64
@@ -393,31 +368,29 @@ SEXP Rhpc_gethandle(SEXP procs)
 #else
     SET_STRING_ELT(cmdSexp, 0, mkChar("system.file('RhpcWorker32.exe',package='Rhpc')"));
 #endif
-    PROTECT( cmdexpr = R_ParseVector(cmdSexp, -1, &status, R_NilValue));
-    ret=R_tryEval(VECTOR_ELT(cmdexpr,0), R_GlobalEnv, &errorOccurred);
-    strncpy(target_path, CHAR(STRING_ELT(ret,0)), sizeof(target_path)-1);
+    PROTECT(cmdexpr = R_ParseVector(cmdSexp, -1, &p_status, R_NilValue));
+    ret = R_tryEval(VECTOR_ELT(cmdexpr, 0), R_GlobalEnv, &errorOccurred);
+    if (errorOccurred || TYPEOF(ret) != STRSXP) error("Failed to locate RhpcWorker executable.");
+    strncpy(target_path, CHAR(STRING_ELT(ret, 0)), sizeof(target_path) - 1);
+    target_path[sizeof(target_path) - 1] = '\0';
     UNPROTECT(2);
-    spawn_argv[0]=r_home;
-    spawn_argv[1]=target_path;
-    spawn_argv[2]=NULL;
-    argv=spawn_argv;
+    spawn_argv[0] = r_home; spawn_argv[1] = target_path; spawn_argv[2] = NULL;
+    argv = spawn_argv;
   }
 #endif
   
-  _M(MPI_Comm_spawn(RHPC_WORKER_CMD, argv, num_procs,
-		    MPI_INFO_NULL, 0, MPI_COMM_SELF, &pcomm,  
-		    MPI_ERRCODES_IGNORE));
-  _M(MPI_Intercomm_merge( pcomm, 0, SXP2COMMP(com)));
-  _M(MPI_Comm_free( &pcomm ));
-  _M(MPI_Comm_size(SXP2COMM(com), &num));
-  RHPC_Comm = SXP2COMM(com); /* rewrite RHPC_Comm */
+  _M(MPI_Comm_spawn(RHPC_WORKER_CMD, argv, target_procs, MPI_INFO_NULL, 0, MPI_COMM_SELF, &pcomm, MPI_ERRCODES_IGNORE));
+  _M(MPI_Intercomm_merge(pcomm, 0, SXP2COMMP(comm_sexp)));
+  _M(MPI_Comm_free(&pcomm));
+  
+  RHPC_Comm = SXP2COMM(comm_sexp);
   _M(MPI_Comm_set_errhandler(RHPC_Comm, MPI_ERRORS_RETURN));
   _M(MPI_Comm_rank(RHPC_Comm, &MPI_rank));
   _M(MPI_Comm_size(RHPC_Comm, &MPI_procs));
-  DPRINT("Rhpc_getHandle(MPI_Comm_spawn : rank:%d size:%d\n", MPI_rank, MPI_procs);
-  Rhpc_set_options( MPI_rank, MPI_procs,RHPC_Comm);
+  Rhpc_set_options(MPI_rank, MPI_procs, RHPC_Comm);
+
   UNPROTECT(1);
-  return(com);
+  return comm_sexp;
 }
 
 SEXP Rhpc_mpi_finalize(void)

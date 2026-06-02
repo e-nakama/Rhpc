@@ -30,141 +30,110 @@
 #include <Rinternals.h>
 #include "RhpcMPIlapplyLB.h"
 
-static int Rhpc_mpi_lapply_LB_active_workers(char *workers,int procs)
+/* Worker states for Load Balancing */
+typedef enum {
+    WORKER_IDLE = 0,
+    WORKER_BUSY = 1
+} WorkerState;
+
+static void Rhpc_mpi_lapply_LB_exit(int num_procs, MPI_Comm comm)
 {
-  int i;
-  int cnt=0;
-  DPRINT("procs=%d\n",procs);
-  for (i=1;i<procs;i++){
-    DPRINT("%d:",workers[i]);
-    if(workers[i]!=0) cnt++;
-  }
-  DPRINT("\n");
-  return(cnt);
-}
+    int cmde[CMDLINESZ];
+    MPI_Request *request = R_Calloc((num_procs - 1), MPI_Request);
+    MPI_Status *status = R_Calloc((num_procs - 1), MPI_Status);
 
-static void Rhpc_mpi_lapply_LB_exit(int procs, MPI_Comm comm)
-{
-  R_xlen_t i;
-  int cmde[CMDLINESZ];
-
-  MPI_Request *request=R_Calloc((procs-1),MPI_Request);
-  MPI_Status  *status =R_Calloc((procs-1),MPI_Status);
-
-  SET_CMD(cmde, CMD_NAME_LAPPLY_LB , SUBCMD_EXIT, 0, 0, 0 );
-  for (i=1; i < procs ; i++){
-    DPRINT("worker exit rank=%ld\n",i);
-    _M(MPI_Isend(cmde,  (int)CMDLINESZ, MPI_INT, i, RHPC_CTRL_TAG, comm, &request[i-1]));
-  }
-  _M(MPI_Waitall(procs-1, request, status));
-  R_Free(request);
-  R_Free(status);
-}
-
-static void Rhpc_mpi_lapply_LB_send(char *workers, int procs,
-				    R_xlen_t *start, SEXP X,
-				    SEXP usequote,
-				    MPI_Comm comm)
-{
-  R_xlen_t i,j;
-  int cur_workers=0;
-  R_xlen_t sendcalls=0;
-  int cix;
-  MPI_Request *request;
-  MPI_Status  *status;
-
-  R_xlen_t offset=*start;
-  R_xlen_t xlen = xlength(X); 
-  SEXP Xsel;
-  SEXP tag;
-  SEXP sendlist;
-  PROTECT_INDEX ix2;
-  PROTECT_INDEX ix3;
-  PROTECT_WITH_INDEX(Xsel      =R_NilValue, &ix2);
-  PROTECT_WITH_INDEX(tag       =R_NilValue, &ix3);
-  PROTECT(sendlist=allocVector(VECSXP,procs-1));
-  for (i=1; i < procs ; i++){
-    SET_VECTOR_ELT(sendlist,i-1, R_NilValue);
-  }
-
-  DPRINT("SEND\n");
-  
-  for (cix=-1,i=1; i < procs ; i++){
-    if((workers[i]==0) && offset+cur_workers < xlen ){
-      cix ++;
-      DPRINT("start=%ld:worker=%ld:cur_workers=%ld:pos=%ld\n",offset,i,cur_workers,cix+offset+1);
-      workers[i]=1;
-      cur_workers++;
-      REPROTECT(tag = allocVector(VECSXP,2),ix3);
-      SET_VECTOR_ELT(tag,0,ScalarReal((double)(cix+offset)));
-      SET_VECTOR_ELT(tag,1,VECTOR_ELT(X,cix+offset));
-      
-      REPROTECT(Xsel= Rhpc_serialize_norealloc(tag), ix2);
-      SET_VECTOR_ELT(sendlist,i-1, Xsel);
+    SET_CMD(cmde, CMD_NAME_LAPPLY_LB, SUBCMD_EXIT, 0, 0, 0);
+    for (int i = 1; i < num_procs; i++) {
+        DPRINT("worker exit rank=%d\n", i);
+        _M(MPI_Isend(cmde, (int)CMDLINESZ, MPI_INT, i, RHPC_CTRL_TAG, comm, &request[i - 1]));
     }
-  }
-  
-  /*calc send count;*/
-  sendcalls=0;
-  for (i=1; i < procs ; i++){
-    if((workers[i]==1)){
-      R_xlen_t lens = xlength(VECTOR_ELT(sendlist,i-1));
-      R_xlen_t cnts = lens / RHPC_SPLIT_SIZE;
-      R_xlen_t mods = lens % RHPC_SPLIT_SIZE;
-      sendcalls+= 1 + cnts + ((mods)?1:0);
-    }
-  }
-  
-  request=R_Calloc(sendcalls,MPI_Request);
-  status =R_Calloc(sendcalls,MPI_Status);
-  
-  if (sendcalls){
-    sendcalls=0;
-    for (i=1; i < procs ; i++){
-      if((workers[i]==1)){
-	int cmds[CMDLINESZ];
-	R_xlen_t lens = xlength(VECTOR_ELT(sendlist,i-1));
-	R_xlen_t cnts = lens / RHPC_SPLIT_SIZE;
-	R_xlen_t mods = lens % RHPC_SPLIT_SIZE;
-	SET_CMD(cmds, CMD_NAME_LAPPLY_LB , SUBCMD_NORMAL, cnts, mods, INTEGER(usequote)[0] );
-	_M(MPI_Isend(cmds,   (int)CMDLINESZ, MPI_INT, i,
-		     RHPC_CTRL_TAG, comm, &request[sendcalls]));
-	sendcalls++;
-
-	for( j = 0 ; j< cnts ; j++){
-	  _M(MPI_Isend(RAW(VECTOR_ELT(sendlist,i-1))+RHPC_SPLIT_SIZE*j,
-		       (int)RHPC_SPLIT_SIZE, MPI_CHAR,
-		       (int)i, TAGCAL(j),    comm, &request[sendcalls]));
-	  sendcalls++;
-	}
-	if ( mods != 0 ){
-	  _M(MPI_Isend(RAW(VECTOR_ELT(sendlist,i-1))+RHPC_SPLIT_SIZE*cnts,
-		       (int)mods,            MPI_CHAR,
-		       (int)i, TAGCAL(cnts), comm, &request[sendcalls]));
-	  sendcalls++;
-	}
-	workers[i]=2;
-      }
-    }
-    _M(MPI_Waitall(sendcalls, request, status));
+    _M(MPI_Waitall(num_procs - 1, request, status));
     R_Free(request);
     R_Free(status);
-  }
-  UNPROTECT(3);
-  *start=*start+cur_workers;
+}
+
+static void Rhpc_mpi_lapply_LB_send(WorkerState *worker_status, int num_procs,
+                                    R_xlen_t *next_item, SEXP X,
+                                    SEXP usequote, MPI_Comm comm,
+                                    int *active_workers)
+{
+    R_xlen_t xlen = xlength(X);
+    SEXP sendlist, tag, Xsel;
+    PROTECT_INDEX ix2, ix3;
+
+    PROTECT(sendlist = allocVector(VECSXP, num_procs - 1));
+    for (int i = 0; i < num_procs - 1; i++) SET_VECTOR_ELT(sendlist, i, R_NilValue);
+    PROTECT_WITH_INDEX(tag = R_NilValue, &ix3);
+    PROTECT_WITH_INDEX(Xsel = R_NilValue, &ix2);
+
+    R_xlen_t total_send_calls = 0;
+
+    /* Prepare work for idle workers */
+    for (int i = 1; i < num_procs && *next_item < xlen; i++) {
+        if (worker_status[i] == WORKER_IDLE) {
+            REPROTECT(tag = allocVector(VECSXP, 2), ix3);
+            SET_VECTOR_ELT(tag, 0, ScalarReal((double)(*next_item)));
+            SET_VECTOR_ELT(tag, 1, VECTOR_ELT(X, *next_item));
+
+            REPROTECT(Xsel = Rhpc_serialize_norealloc(tag), ix2);
+            SET_VECTOR_ELT(sendlist, i - 1, Xsel);
+
+            R_xlen_t lens = xlength(Xsel);
+            R_xlen_t cnts, mods;
+            Rhpc_get_chunks(lens, &cnts, &mods);
+            total_send_calls += 1 + cnts + (mods ? 1 : 0);
+
+            worker_status[i] = WORKER_BUSY;
+            (*active_workers)++;
+            (*next_item)++;
+        }
+    }
+
+    if (total_send_calls > 0) {
+        MPI_Request *request = R_Calloc(total_send_calls, MPI_Request);
+        MPI_Status *status = R_Calloc(total_send_calls, MPI_Status);
+        R_xlen_t call_idx = 0;
+
+        for (int i = 1; i < num_procs; i++) {
+            SEXP current_payload = VECTOR_ELT(sendlist, i - 1);
+            if (current_payload != R_NilValue) {
+                int cmds[CMDLINESZ];
+                R_xlen_t lens = xlength(current_payload);
+                R_xlen_t cnts, mods;
+                Rhpc_get_chunks(lens, &cnts, &mods);
+
+                SET_CMD(cmds, CMD_NAME_LAPPLY_LB, SUBCMD_NORMAL, cnts, mods, INTEGER(usequote)[0]);
+                _M(MPI_Isend(cmds, (int)CMDLINESZ, MPI_INT, i, RHPC_CTRL_TAG, comm, &request[call_idx++]));
+
+                for (R_xlen_t j = 0; j < cnts; j++) {
+                    _M(MPI_Isend(RAW(current_payload) + RHPC_SPLIT_SIZE * j, (int)RHPC_SPLIT_SIZE,
+                                 MPI_CHAR, i, TAGCAL(j), comm, &request[call_idx++]));
+                }
+                if (mods != 0) {
+                    _M(MPI_Isend(RAW(current_payload) + RHPC_SPLIT_SIZE * cnts, (int)mods,
+                                 MPI_CHAR, i, TAGCAL(cnts), comm, &request[call_idx++]));
+                }
+            }
+        }
+        _M(MPI_Waitall((int)total_send_calls, request, status));
+        R_Free(request);
+        R_Free(status);
+    }
+    UNPROTECT(3);
 }
 
 SEXP Rhpc_mpi_lapply_LB(SEXP cl, SEXP X, SEXP args, SEXP usequote)
 {
   R_xlen_t i;
   MPI_Comm comm;
-  int procs;
+  int num_procs;
   SEXP out, l_out=R_NilValue;
   R_xlen_t szi, cnti, modi;
   int dummy_quote;
   int cmd[CMDLINESZ];
-  R_xlen_t xlen, start;
-  char *workers;
+  R_xlen_t xlen, next_item = 0;
+  WorkerState *worker_status;
+  int active_workers = 0;
   SEXP outlist_l, outlist, ans, names = getAttrib(X, R_NamesSymbol);
   PROTECT_INDEX outlist_l_ix, outlist_ix, ans_ix;
   SEXP indata, uns, uns_l;
@@ -174,7 +143,7 @@ SEXP Rhpc_mpi_lapply_LB(SEXP cl, SEXP X, SEXP args, SEXP usequote)
     error("%s", "it's not MPI_Comm external pointer\n");
   }
   comm = SXP2COMM(cl);
-  _M(MPI_Comm_size(comm, &procs));
+  _M(MPI_Comm_size(comm, &num_procs));
 
   if(finalize){
     warning("Rhpc were already finalized.");
@@ -191,38 +160,32 @@ SEXP Rhpc_mpi_lapply_LB(SEXP cl, SEXP X, SEXP args, SEXP usequote)
   PROTECT(out=Rhpc_serialize_norealloc(args));
 
   szi = xlength(out);
-  cnti = szi/RHPC_SPLIT_SIZE;
-  modi = szi%RHPC_SPLIT_SIZE;
-  SET_CMD(cmd, CMD_NAME_LAPPLY_LB,
-	  SUBCMD_NORMAL,cnti, modi, INTEGER(usequote)[0]);
+  Rhpc_get_chunks(szi, &cnti, &modi);
+  SET_CMD(cmd, CMD_NAME_LAPPLY_LB, SUBCMD_NORMAL, cnti, modi, INTEGER(usequote)[0]);
   _M(MPI_Bcast(cmd, CMDLINESZ, MPI_INT, 0, comm));
 
-  for(i = 0; i < cnti;i++){
-    _M(MPI_Bcast(RAW(out)+ RHPC_SPLIT_SIZE*i,   (int)RHPC_SPLIT_SIZE, MPI_CHAR, 0, comm));
-  }
-  if( modi !=0 ){
-    _M(MPI_Bcast(RAW(out)+ RHPC_SPLIT_SIZE*cnti, (int)modi,           MPI_CHAR, 0, comm));
-  }
+  for (i = 0; i < cnti; i++) _M(MPI_Bcast(RAW(out) + RHPC_SPLIT_SIZE * i, (int)RHPC_SPLIT_SIZE, MPI_CHAR, 0, comm));
+  if (modi != 0) _M(MPI_Bcast(RAW(out) + RHPC_SPLIT_SIZE * cnti, (int)modi, MPI_CHAR, 0, comm));
 
-  xlen = xlength(X); 
-  start = 0;
-  workers = R_Calloc(procs, char);
-  memset((void*)workers, 0, procs);
+  xlen = xlength(X);
+  worker_status = R_Calloc(num_procs, WorkerState);
+  memset(worker_status, 0, sizeof(WorkerState) * num_procs);
 
   PROTECT_WITH_INDEX(outlist_l=R_NilValue,               &outlist_l_ix);
-  PROTECT_WITH_INDEX(outlist  =allocVector(VECSXP,xlen), &outlist_ix  );
+  PROTECT_WITH_INDEX(outlist  =allocVector(VECSXP,xlen), &outlist_ix);
   PROTECT_WITH_INDEX(ans      =R_NilValue,               &ans_ix);
   PROTECT_WITH_INDEX(indata   =R_NilValue,               &indata_ix);
   PROTECT_WITH_INDEX(uns_l    =R_NilValue,               &uns_l_ix);
   PROTECT_WITH_INDEX(uns      =R_NilValue,               &uns_ix);
 
-  if(!isNull(names)) setAttrib(outlist, R_NamesSymbol, names);
+  if (!isNull(names)) setAttrib(outlist, R_NamesSymbol, names);
 
-  while(start<xlen || Rhpc_mpi_lapply_LB_active_workers(workers,procs)){
+  /* Main Loop: Distribute work and collect results */
+  while (next_item < xlen || active_workers > 0) {
     MPI_Status stat;
-    Rhpc_mpi_lapply_LB_send(workers, procs, &start, X, usequote, comm);
+    Rhpc_mpi_lapply_LB_send(worker_status, num_procs, &next_item, X, usequote, comm, &active_workers);
 
-    if(Rhpc_mpi_lapply_LB_active_workers(workers,procs)){
+    if (active_workers > 0) {
       _M(MPI_Probe(MPI_ANY_SOURCE, RHPC_CTRL_TAG, comm, &stat));
       if(stat.MPI_SOURCE != 0){
 	int cmdr[CMDLINESZ];
@@ -261,15 +224,16 @@ SEXP Rhpc_mpi_lapply_LB(SEXP cl, SEXP X, SEXP args, SEXP usequote)
 	REPROTECT(uns  = Rhpc_unserialize(indata), uns_ix);
 	index = (R_xlen_t)REAL(VECTOR_ELT(uns,0))[0];
 	REPROTECT(ans = VECTOR_ELT(uns,1),ans_ix);
-	SET_VECTOR_ELT(outlist, index, ans );
-	workers[wkr]=0;
+	SET_VECTOR_ELT(outlist, index, ans);
+	worker_status[wkr] = WORKER_IDLE;
+	active_workers--;
 	DPRINT("finish rank=%d ix=%ld\n", wkr, index);
       }
     }
   }
-  Rhpc_mpi_lapply_LB_exit(procs, comm);
+  Rhpc_mpi_lapply_LB_exit(num_procs, comm);
   UNPROTECT(9);
-  R_Free(workers);
+  R_Free(worker_status);
   pop_policy();
   return (_CHK(outlist));
 }

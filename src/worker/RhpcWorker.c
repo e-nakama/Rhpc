@@ -194,7 +194,7 @@ static void Rhpc_worker_main(void){
   push_policy();
 
   PROTECT(cmdSexp = allocVector(STRSXP, 1));
-  SET_STRING_ELT(cmdSexp, 0, mkChar("function (fun, args)do.call(\"fun\", args)"));
+  SET_STRING_ELT(cmdSexp, 0, mkChar("function (fun, args) do.call(fun, args)"));
   PROTECT( cmdexpr = R_ParseVector(cmdSexp, -1, &status, R_NilValue));
   PROTECT(Rhpc_docall=VECTOR_ELT(cmdexpr,0));
   do{

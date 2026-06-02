@@ -152,6 +152,12 @@ static char RHPC_WORKER_CMD[4096];
 #define RHPC_CTRL_TAG 0
 #define TAGCAL(_x) ((int)_x + 1)
 
+/* Helper to calculate chunks for large object transmission */
+static inline void Rhpc_get_chunks(R_xlen_t total_size, R_xlen_t *chunks, R_xlen_t *remainder) {
+    *chunks = total_size / RHPC_SPLIT_SIZE;
+    *remainder = total_size % RHPC_SPLIT_SIZE;
+}
+
 enum CMD_NAME{
   CMD_NAME_UNKNOWN,
   CMD_NAME_WORKERCALL_NORET,

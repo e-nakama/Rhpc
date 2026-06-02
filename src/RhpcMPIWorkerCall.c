@@ -23,7 +23,6 @@
 #include "common/config.h"
 #endif
 
-#include <sys/time.h>
 #include "common/Rhpc.h"
 #include <mpi.h>
 #include <R.h>
@@ -33,87 +32,87 @@
 SEXP Rhpc_mpi_worker_call(SEXP cl, SEXP args, SEXP actioncode, SEXP usequote)
 {
   int action=INTEGER(actioncode)[0];
-  R_xlen_t i,j;
+  R_xlen_t i;
   MPI_Comm comm;
-  int procs;
+  int num_procs;
   SEXP out, l_out=R_NilValue;
   R_xlen_t szi, cnti, modi;
-  int cmd[CMDLINESZ], dummy_cmd[CMDLINESZ], *cmds;
+  int cmd[CMDLINESZ], dummy_cmd[CMDLINESZ] = {0}, *cmds;
   SEXP inlist, inlista;
-  R_xlen_t *szs, *cnts, *mods;
-  int reqcnt;
+  R_xlen_t *cnts, *mods;
+  int total_recv_calls;
   PROTECT_INDEX ix0;
   MPI_Request *request;
   MPI_Status  *status;
-  int calls;
+  int call_idx;
   SEXP outlist;
 
   if(TYPEOF(cl)!=EXTPTRSXP) error("it's not MPI_Comm external pointer\n");
   comm = SXP2COMM(cl);
-  _M(MPI_Comm_size(comm, &procs));
+  _M(MPI_Comm_size(comm, &num_procs));
 
   if(finalize){ warning("Rhpc were already finalized."); return(R_NilValue); }
   if(!initialize){ warning("Rhpc not initialized."); return(R_NilValue); }
 
   push_policy();
-  PROTECT(l_out);
+  PROTECT(l_out = R_NilValue);
   PROTECT(out=Rhpc_serialize_norealloc(args));
 
   szi = xlength(out);
-  cnti = szi/RHPC_SPLIT_SIZE;
-  modi = szi%RHPC_SPLIT_SIZE;
-  if (action == 0) SET_CMD(cmd, CMD_NAME_WORKERCALL_NORET, SUBCMD_NORMAL, cnti, modi, INTEGER(usequote)[0]);
-  else if (action == 2) SET_CMD(cmd, CMD_NAME_WORKERCALL_EXPORT, SUBCMD_NORMAL, cnti, modi, INTEGER(usequote)[0]);
-  else SET_CMD(cmd, CMD_NAME_WORKERCALL_RET, SUBCMD_NORMAL, cnti, modi, INTEGER(usequote)[0]);
+  Rhpc_get_chunks(szi, &cnti, &modi);
+
+  int cmd_main = (action == 0) ? CMD_NAME_WORKERCALL_NORET : 
+                 (action == 2) ? CMD_NAME_WORKERCALL_EXPORT : CMD_NAME_WORKERCALL_RET;
   
+  SET_CMD(cmd, cmd_main, SUBCMD_NORMAL, cnti, modi, INTEGER(usequote)[0]);
   _M(MPI_Bcast(cmd, CMDLINESZ, MPI_INT, 0, comm));
-  for(i = 0; i < cnti;i++) _M(MPI_Bcast(RAW(out)+ RHPC_SPLIT_SIZE*i, (int)RHPC_SPLIT_SIZE, MPI_CHAR, 0, comm));
-  if( modi !=0 ) _M(MPI_Bcast(RAW(out)+ RHPC_SPLIT_SIZE*cnti, (int)modi, MPI_CHAR, 0, comm));
+
+  for (i = 0; i < cnti; i++) _M(MPI_Bcast(RAW(out) + RHPC_SPLIT_SIZE * i, (int)RHPC_SPLIT_SIZE, MPI_CHAR, 0, comm));
+  if (modi != 0) _M(MPI_Bcast(RAW(out) + RHPC_SPLIT_SIZE * cnti, (int)modi, MPI_CHAR, 0, comm));
 
   if(action==0){
       SEXP nillist;
-      PROTECT(nillist=allocVector(VECSXP,procs-1));
-      for(i=1; i<procs; i++) SET_VECTOR_ELT(nillist, i-1, R_NilValue);
+      PROTECT(nillist=allocVector(VECSXP, num_procs - 1));
+      for(i = 1; i < num_procs; i++) SET_VECTOR_ELT(nillist, i - 1, R_NilValue);
       UNPROTECT(3);
       pop_policy();
       return(nillist);
   }
 
-  cmds = R_Calloc(procs * CMDLINESZ, int);
-  memset(cmds,0,procs * CMDLINESZ * sizeof(int));
+  cmds = R_Calloc(num_procs * CMDLINESZ, int);
   _M(MPI_Gather(dummy_cmd, CMDLINESZ, MPI_INT, cmds, CMDLINESZ, MPI_INT, 0, comm));
 
-  szs  = R_Calloc(procs,R_xlen_t);
-  cnts = R_Calloc(procs,R_xlen_t);
-  mods = R_Calloc(procs,R_xlen_t);
-  reqcnt=0;
-  memset((void*)szs ,0,procs*sizeof(R_xlen_t));
-  memset((void*)cnts,0,procs*sizeof(R_xlen_t));
-  memset((void*)mods,0,procs*sizeof(R_xlen_t));
+  cnts = R_Calloc(num_procs, R_xlen_t);
+  mods = R_Calloc(num_procs, R_xlen_t);
+  total_recv_calls = 0;
 
-  PROTECT(inlist=allocVector(VECSXP,procs-1));
+  PROTECT(inlist=allocVector(VECSXP, num_procs - 1));
   inlista=R_NilValue;
   PROTECT_WITH_INDEX(inlista,&ix0);
 
-  for(i=1; i<procs; i++){
-    int dummy_main, dummy_sub, dummy_usequote;
-    GET_CMD(cmds+CMDLINESZ*i, &dummy_main, &dummy_sub, &cnts[i], &mods[i], &dummy_usequote); 
-    szs[i] = cnts[i] * RHPC_SPLIT_SIZE + mods[i];
-    reqcnt += cnts[i] + ((mods[i])?1:0);
-    REPROTECT(inlista = allocVector(RAWSXP,szs[i]), ix0);
-    SET_VECTOR_ELT(inlist, i-1,inlista);
+  for(i = 1; i < num_procs; i++){
+    int dummy_main, dummy_sub, dummy_quo;
+    GET_CMD(cmds + CMDLINESZ * i, &dummy_main, &dummy_sub, &cnts[i], &mods[i], &dummy_quo); 
+    R_xlen_t total_len = cnts[i] * RHPC_SPLIT_SIZE + mods[i];
+    total_recv_calls += (int)cnts[i] + (mods[i] ? 1 : 0);
+    REPROTECT(inlista = allocVector(RAWSXP, total_len), ix0);
+    SET_VECTOR_ELT(inlist, i - 1, inlista);
   }
 
-  request = R_Calloc(reqcnt,MPI_Request);
-  status  = R_Calloc(reqcnt,MPI_Status);
+  request = R_Calloc(total_recv_calls, MPI_Request);
+  status  = R_Calloc(total_recv_calls, MPI_Status);
+  call_idx = 0;
 
-  for(calls=0,i=1; i<procs; i++){
-    for(j=0;j<cnts[i];j++){
-      _M(MPI_Irecv(RAW(VECTOR_ELT(inlist,i-1))+RHPC_SPLIT_SIZE*j, (int)RHPC_SPLIT_SIZE, MPI_CHAR, i, TAGCAL(j), comm, &request[calls++]));
+  for(i = 1; i < num_procs; i++){
+    SEXP current_raw = VECTOR_ELT(inlist, i - 1);
+    for(R_xlen_t j = 0; j < cnts[i]; j++){
+      _M(MPI_Irecv(RAW(current_raw) + RHPC_SPLIT_SIZE * j, (int)RHPC_SPLIT_SIZE, MPI_CHAR, (int)i, TAGCAL(j), comm, &request[call_idx++]));
     }
-    if ( mods[i] != 0 ) _M(MPI_Irecv(RAW(VECTOR_ELT(inlist,i-1))+RHPC_SPLIT_SIZE*cnts[i], (int)mods[i], MPI_CHAR, i, TAGCAL(cnts[i]), comm, &request[calls++]));
+    if (mods[i] != 0) {
+      _M(MPI_Irecv(RAW(current_raw) + RHPC_SPLIT_SIZE * cnts[i], (int)mods[i], MPI_CHAR, (int)i, TAGCAL(cnts[i]), comm, &request[call_idx++]));
+    }
   }
-  _M(MPI_Waitall(calls, request, status));
+  _M(MPI_Waitall(call_idx, request, status));
 
   R_Free(request);
   R_Free(status);
@@ -121,18 +120,17 @@ SEXP Rhpc_mpi_worker_call(SEXP cl, SEXP args, SEXP actioncode, SEXP usequote)
   {
     PROTECT_INDEX ix1, ix2;
     SEXP un, l_un;
-    PROTECT(outlist=allocVector(VECSXP,procs-1));
+    PROTECT(outlist=allocVector(VECSXP, num_procs - 1));
     PROTECT_WITH_INDEX(l_un=R_NilValue,&ix1);
     PROTECT_WITH_INDEX(  un=R_NilValue,&ix2);
-    for(i=1; i<procs; i++){
-      REPROTECT(un = Rhpc_unserialize(VECTOR_ELT(inlist,i-1)), ix2);
-      SET_VECTOR_ELT(outlist, i-1, un);
+    for(i = 1; i < num_procs; i++){
+      REPROTECT(un = Rhpc_unserialize(VECTOR_ELT(inlist, i - 1)), ix2);
+      SET_VECTOR_ELT(outlist, i - 1, un);
     }
   }
   UNPROTECT(7);
 
   R_Free(cmds);
-  R_Free(szs);
   R_Free(cnts);
   R_Free(mods);
 
