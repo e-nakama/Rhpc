@@ -1,3 +1,4 @@
+#! /bin/sh
 rm -rf autom4te.cache
 rm -f config.*
 rm -f configure.lineno
@@ -13,6 +14,7 @@ rm -f src/Makevars
 rm -f src/common/*~
 rm -f src/common/*.o
 rm -f src/common/config.h
+rm -f src/common/Makefile
 rm -f src/worker/*.exe
 rm -f src/worker/*.o
 rm -f src/worker/*~
@@ -21,9 +23,6 @@ rm -f src/worker/Rhpc
 rm -f src/worker/RhpcSpawn
 rm -f src/worker/RhpcWorker
 rm -f RhpcWin64.cmd
-rm -f RhpcWin32.cmd
 rm -f Rhpc64.cmd
-rm -f Rhpc32.cmd
 rm -f RhpcWorker64.exe
-rm -f RhpcWorker32.exe
 
