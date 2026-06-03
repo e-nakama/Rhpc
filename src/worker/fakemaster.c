@@ -39,7 +39,7 @@ int main (int argc, char *argv[])
   char *e;
 
   char pipename[FAKE_PATH_MAX];
-  char msg[FAKE_BUF_SZ];
+  char msg[FAKE_BUF_SZ + 512];
 
   /*  
   if (lpCmdLine == NULL){
@@ -57,6 +57,7 @@ int main (int argc, char *argv[])
     strncpy(pipename, lpCmdLine, sizeof(pipename));
     */
     strncpy(pipename, argv[1], sizeof(pipename)-1);
+    pipename[sizeof(pipename)-1] = '\0';
   }
   
   memset(buf,0,sizeof(buf));
@@ -94,7 +95,7 @@ int main (int argc, char *argv[])
                   0,
                   NULL);
   if(hP == INVALID_HANDLE_VALUE){
-    snprintf(msg, sizeof(msg)-1, "Invalid handle value : named pipe [%s]", pipename);
+    snprintf(msg, sizeof(msg), "Invalid handle value : named pipe [%s]", pipename);
     MessageBox(NULL,
 	       msg,
 	       "Rhpc:fakemaster",
@@ -106,7 +107,7 @@ int main (int argc, char *argv[])
 		  buf,
 		  sizeof(buf),
 		  &dwNumberOfBytesWritten, NULL)){
-    snprintf(msg, sizeof(msg)-1, "Faild to write named pipe [%s]", pipename);
+    snprintf(msg, sizeof(msg), "Faild to write named pipe [%s]", pipename);
     MessageBox(NULL,
 	       msg,
 	       "Rhpc:fakemaster",
@@ -120,7 +121,7 @@ int main (int argc, char *argv[])
 		  buf,
 		  sizeof(buf),
 		  &dwNumberOfBytesRead, NULL)){
-    snprintf(msg, sizeof(msg)-1, "Can't detected Rhpc_finalize() on fakemaster[pipe:%s].", pipename);
+    snprintf(msg, sizeof(msg), "Can't detected Rhpc_finalize() on fakemaster[pipe:%s].", pipename);
     MessageBox(NULL,
 	       msg,
 	       "Rhpc:fakemaster",

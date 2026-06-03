@@ -114,7 +114,7 @@ SEXP Rhpc_mpi_lapply_seq(SEXP cl, SEXP X, SEXP args, SEXP usequote)
   SEXP out, l_out=R_NilValue;
   R_xlen_t szi, cnti, modi;
   int dummy_usequote, cmd[CMDLINESZ];
-  R_xlen_t xlen = xlength(X), *worker_item_counts, *worker_indices;
+  R_xlen_t xlen = xlength(X), *worker_item_counts;
   SEXP outlist_l, outlist, names = getAttrib(X, R_NamesSymbol);
   PROTECT_INDEX outlist_l_ix, outlist_ix, ans_ix;
   SEXP indata, uns, uns_l, ans;

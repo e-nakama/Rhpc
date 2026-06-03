@@ -1,25 +1,16 @@
 
 MPI_TYPE=MSMPI
-ifeq "$(MPI_TYPE)" "MSMPI"
 XMSMPI_INC='$(subst \,/,$(MSMPI_INC))'
-XMSMPI_LIB32='$(subst \,/,$(MSMPI_LIB32))'
 XMSMPI_LIB64='$(subst \,/,$(MSMPI_LIB64))'
-ifeq "$(WIN)" "64"
 TARGET_ARCH=64
 MPILIBA=../libmsmpi64.a
-PKG_CFLAGS= -I$(XMSMPI_INC) -DMSMPI_NO_DEPRECATE_20
-#PKG_LIBS= "$(XMSMPI_LIB64)/msmpi.lib"
-PKG_LIBS= $(MPILIBA)
-else
-TARGET_ARCH=32
-PKG_CFLAGS= -I$(XMSMPI_INC) -DMSMPI_NO_DEPRECATE_20
-PKG_LIBS= -L$(XMSMPI_LIB32) -l:msmpi.lib
-endif
-endif
+PKG_CFLAGS= -I$(XMSMPI_INC) -DMSMPI_NO_DEPRECATE_20 -DWIN32
+PKG_LIBS= $(MPILIBA) -L"$(R_HOME)/bin$(R_ARCH)" -lR
 
 CP = cp
-SOURCES_C=RhpcWorker.c RhpcWorkerSerialize.c
+SOURCES_C=RhpcWorker.c RhpcWorker_LapplyLB.c RhpcWorker_Lapplyseq.c RhpcWorker_WorkerCall.c
 OBJECTS=$(SOURCES_C:.c=.o)
+COMMON_OBJECTS=../common/RhpcSerialize.o ../common/RhpcMS.o
 
 
 all:	RhpcWorker$(TARGET_ARCH).exe fakemaster$(TARGET_ARCH).exe RhpcWin$(TARGET_ARCH).cmd Rhpc$(TARGET_ARCH).cmd RhpcSpawnWin$(TARGET_ARCH).cmd
@@ -40,10 +31,19 @@ Rhpc$(TARGET_ARCH).cmd: Rhpc.cmd.in
 RhpcSpawnWin$(TARGET_ARCH).cmd: RhpcSpawnWin.cmd.in
 	$(SED) -b -e 's/@@ARCH@@/$(TARGET_ARCH)/g' < RhpcSpawnWin.cmd.in > $@
 
-RhpcWorker$(TARGET_ARCH).exe: $(MPILIBA) $(OBJECTS)
-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(OBJECTS) -o $@ $(PKG_LIBS) $(LIBR)
+RhpcWorker$(TARGET_ARCH).exe: $(MPILIBA) $(OBJECTS) $(COMMON_OBJECTS)
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(OBJECTS) $(COMMON_OBJECTS) -o $@ $(PKG_LIBS) $(LIBR)
 
 RhpcWorker.o: RhpcWorker.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CFLAGS) -c $< -o $@
+
+RhpcWorker_LapplyLB.o: RhpcWorker_LapplyLB.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CFLAGS) -c $< -o $@
+
+RhpcWorker_Lapplyseq.o: RhpcWorker_Lapplyseq.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CFLAGS) -c $< -o $@
+
+RhpcWorker_WorkerCall.o: RhpcWorker_WorkerCall.c
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CFLAGS) -c $< -o $@
 
 fakemaster$(TARGET_ARCH).exe: fakemaster$(TARGET_ARCH).o
@@ -51,9 +51,6 @@ fakemaster$(TARGET_ARCH).exe: fakemaster$(TARGET_ARCH).o
 
 fakemaster$(TARGET_ARCH).o: fakemaster.c
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
-
-RhpcSerialize.o: RhpcWorkerSerialize.c
-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CFLAGS) -c $< -o $@
 
 clean:
 	@-$(RM) -f RhpcWorker RhpcWorker32.exe RhpcWorker64.exe RhpcWin32.cmd RhpcWin64.cmd RhpcSpawnWin32.cmd RhpcSpawnWin64.cmd $(OBJECTS) fakemaster*.o fakemaster*.exe

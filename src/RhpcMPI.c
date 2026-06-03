@@ -56,6 +56,11 @@ int MYSCHED;
 int MPI_rank = 0;
 int MPI_procs = 0;
 
+static char RHPC_WORKER_CMD[4096];
+
+static char *MPI_argv[1]={"R"};
+static int MPI_argc = 1;
+
 MPI_Comm RHPC_Comm = MPI_COMM_NULL;
 
 /* fake master */

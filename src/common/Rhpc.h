@@ -144,9 +144,6 @@ SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum);
 #define SXP2COMM(x) (*((MPI_Comm*)R_ExternalPtrAddr(x)))
 #define SXP2COMMP(x) ((MPI_Comm*)R_ExternalPtrAddr(x))
 
-#if !defined(WORKER) /* master only */
-static char RHPC_WORKER_CMD[4096];
-#endif
 #define RHPC_SPLIT_SIZE (1UL<<30)
 #define CMDLINESZ 5
 #define RHPC_CTRL_TAG 0
@@ -202,18 +199,6 @@ static inline void GET_CMD(int *cmd, int *m, int *s, R_xlen_t *cnt, R_xlen_t *mo
   DPRINT("CMD[%d]:%d:%d:%d:%d:%d\n", getpid(),cmd[0], cmd[1], cmd[2], cmd[3], cmd[4]);
 } 
 
-#if defined(WORKER)
-static char *MPI_argv[]={"RhpcWorker",
-			 "--gui none",
-			 "--silent",
-			 "--no-restore",
-			 "--no-save",
-			 "--no-readline"};
-static int MPI_argc = sizeof(MPI_argv)/sizeof(char*);
-#else
-static char *MPI_argv[1]={"R"};
-static int MPI_argc = 1;
-#endif
 extern int MYSCHED;
 extern int initialize;
 extern int finalize;

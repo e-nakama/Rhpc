@@ -48,10 +48,13 @@
 #define R_Slave R_NoEcho
 #endif
 
-#if !defined(putenv)
-extern int putenv(char *string);
-#endif
-
+static char *MPI_argv[]={"RhpcWorker",
+			 "--gui none",
+			 "--silent",
+			 "--no-restore",
+			 "--no-save",
+			 "--no-readline"};
+static int MPI_argc = sizeof(MPI_argv)/sizeof(char*);
 
 /* Define global variables without static to share with other units */
 int initialize = 0;
