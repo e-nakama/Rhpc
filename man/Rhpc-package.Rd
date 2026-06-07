@@ -100,10 +100,10 @@ Rhpc_setupRNG(cl, iseed)
   \code{"Rhpc.mpi.rank"} and \code{"Rhpc.mpi.procs"}
   can get attribute of MPI in getOption().  
 
-  \url{https://prs.ism.ac.jp/~nakama/Rhpc/}
+  \url{https://github.com/e-nakama/Rhpc}
 }
 \author{
-  Junji NAKANO <nakanoj@ism.ac.jp> and Ei-ji Nakama<nakama@com-one.com>
+  Ei-ji Nakama<nakama@com-one.com> and Junji NAKANO <nakanoj@ism.ac.jp>
  
   Maintainer: Ei-ji Nakama <nakama@com-one.com>
 }

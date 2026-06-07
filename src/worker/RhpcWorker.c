@@ -1,10 +1,10 @@
 /*
     Rhpc : R HPC environment
-    Copyright (C) 2012-2018  Junji NAKANO and Ei-ji Nakama
+    Copyright (C) 2012-2026 Ei-ji Nakama and Junji NAKANO
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License,
+    the R_Free Software Foundation, either version 3 of the License,
     any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -15,6 +15,10 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #ifndef WIN32
 #include "../common/config.h"
 #else
@@ -24,17 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_DLADDR
-#  ifndef   _GNU_SOURCE
-#    define _GNU_SOURCE
-#  endif
-#  ifndef   __USE_GNU
-#    define __USE_GNU
-#  endif
-#endif
 #ifndef WIN32
 #include <dlfcn.h>
 #endif
+#define WORKER 1
+#include "../common/Rhpc.h"
 #include <Rembedded.h>
 #ifdef WIN32
 #undef ERROR
@@ -43,8 +41,6 @@
 #ifndef WIN32
 #include <Rinterface.h>
 #endif
-#include <Rinternals.h>
-#include <R_ext/Parse.h>
 
 /* from Jeroen Ooms san! */
 #include <Rversion.h>
@@ -52,25 +48,26 @@
 #define R_Slave R_NoEcho
 #endif
 
-#define WORKER 1
-#include <mpi.h>
+static char *MPI_argv[]={"RhpcWorker",
+			 "--gui none",
+			 "--silent",
+			 "--no-restore",
+			 "--no-save",
+			 "--no-readline"};
+static int MPI_argc = sizeof(MPI_argv)/sizeof(char*);
 
-/*
-#if !defined(putenv)
-extern int putenv(char *string);
-#endif
-*/
+/* Define global variables without static to share with other units */
+int initialize = 0;
+int finalize = 0; /* Unused in worker but declared in Rhpc.h */
+int MPI_rank = -1;
+int MPI_procs = -1;
+MPI_Comm RHPC_Comm;
+SEXP Rhpc_docall = NULL;
+int MYSCHED;
 
-#include "../common/Rhpc.h"
-#include "../common/Rhpc_ms.h"
-
-static int initialize = 0;
-
-static int MPI_rank=-1;
-static int MPI_procs=-1;
-
-static MPI_Comm RHPC_Comm;
-
+#include "RhpcWorker_LapplyLB.h"
+#include "RhpcWorker_Lapplyseq.h"
+#include "RhpcWorker_WorkerCall.h"
 
 static void Rhcp_worker_finalize(void)
 {
@@ -81,8 +78,6 @@ static void Rhcp_worker_finalize(void)
 
 extern Rboolean R_Interactive;  /* TRUE during interactive use*/
 extern Rboolean R_Slave;        /* Run as a slave process */
-
-static SEXP Rhpc_docall = NULL;
 
 static void Rhpc_worker_init(void)
 {
@@ -124,7 +119,7 @@ static void Rhpc_worker_init(void)
   }
   
   if( failmpilib ){
-#   ifdef HAVE_DLADDR
+#   if defined(HAVE_DLADDR) && defined(HAVE_DLFCN_H)
       /* maybe get beter soname */
       rc = mydladdr(MPI_Init, &info_MPI_Init);
       if (rc){
@@ -185,10 +180,6 @@ static void Rhpc_worker_init(void)
 
 }
 
-#include "RhpcWorker_LapplyLB.h"
-#include "RhpcWorker_Lapplyseq.h"
-#include "RhpcWorker_WorkerCall.h"
-
 static void Rhpc_worker_main(void){
   int  cmd[CMDLINESZ];
   int  getcmd = 0;
@@ -206,7 +197,7 @@ static void Rhpc_worker_main(void){
   push_policy();
 
   PROTECT(cmdSexp = allocVector(STRSXP, 1));
-  SET_STRING_ELT(cmdSexp, 0, mkChar("function (fun, args)do.call(\"fun\", args)"));
+  SET_STRING_ELT(cmdSexp, 0, mkChar("function (fun, args) do.call(fun, args)"));
   PROTECT( cmdexpr = R_ParseVector(cmdSexp, -1, &status, R_NilValue));
   PROTECT(Rhpc_docall=VECTOR_ELT(cmdexpr,0));
   do{

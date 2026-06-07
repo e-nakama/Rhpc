@@ -1,0 +1,18 @@
+MPI_TYPE=MSMPI
+XMSMPI_INC='$(subst \,/,$(MSMPI_INC))'
+TARGET_ARCH=64
+PKG_CPPFLAGS = -I. -I$(XMSMPI_INC) -DWIN32
+
+SOURCES_C = RhpcSerialize.c RhpcMS.c
+OBJECTS = $(SOURCES_C:.c=.o)
+
+all: $(OBJECTS)
+
+RhpcSerialize.o: RhpcSerialize.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CPPFLAGS) -c $< -o $@
+
+RhpcMS.o: RhpcMS.c
+	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(PKG_CPPFLAGS) -c $< -o $@
+
+clean:
+	@-$(RM) -f $(OBJECTS)

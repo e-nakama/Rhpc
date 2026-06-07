@@ -1,37 +1,39 @@
 /*
     Rhpc : R HPC environment
-    Copyright (C) 2012-2018  Junji NAKANO and Ei-ji Nakama
+    Copyright (C) 2012-2026 Ei-ji Nakama and Junji NAKANO
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as published by
     the Free Software Foundation, either version 3 of the License,
     any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#ifndef WIN32
+#include "config.h"
+#endif
+
+#include "Rhpc.h"
+#include <R.h>
+#include <Rinternals.h>
 
 SEXP Rhpc_enquote(SEXP arg)
 {
   R_xlen_t i;
   SEXP argq=R_NilValue;
-  SEXP nm=getAttrib(arg, R_NamesSymbol);
+  SEXP nm = getAttrib(arg, R_NamesSymbol);
   PROTECT_INDEX pqix;
   PROTECT(nm);
   PROTECT_WITH_INDEX(argq, &pqix);  
   argq = allocVector(VECSXP, xlength(arg));
   REPROTECT(argq , pqix);
   for(i=0;i<xlength(arg);i++){
-    SEXP ll;
-    SEXP aa;
+    SEXP ll, aa;
     PROTECT(aa = CONS(VECTOR_ELT(arg,i),R_NilValue));
-    PROTECT(ll =  LCONS(install("quote"),aa));
+    PROTECT(ll = LCONS(install("quote"),aa));
     SET_VECTOR_ELT(argq, i, ll);
     REPROTECT(argq ,pqix);
     UNPROTECT(2);
@@ -42,19 +44,13 @@ SEXP Rhpc_enquote(SEXP arg)
   return(argq);
 }
 
-
 #define SPLITSIZEIX(LEN,SPLIT,IX) (LEN/SPLIT+((IX<(LEN%SPLIT))?1:0)) 
 
 SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum)
 {
-  R_xlen_t spnum;
-  R_xlen_t sz;
-  SEXP outList;
-  SEXP origListNm;
-  SEXP origListClass;
+  R_xlen_t spnum, sz, i, j;
+  SEXP outList, origListNm, origListClass;
   PROTECT_INDEX outList_ix;
-  R_xlen_t i;
-  R_xlen_t j;
 
   if(TYPEOF(orgList) != VECSXP ) return (orgList);
 
@@ -68,8 +64,7 @@ SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum)
   PROTECT(origListClass = getAttrib(orgList, R_ClassSymbol));
 
   for ( i=0; i< spnum; i++){
-    SEXP work;
-    SEXP workNm;
+    SEXP work, workNm;
     PROTECT(work   = allocVector(VECSXP,SPLITSIZEIX(sz,spnum,i)));
     PROTECT(workNm = allocVector(STRSXP,SPLITSIZEIX(sz,spnum,i)));
     for ( j=i ; j<sz; j+=spnum ){
@@ -89,5 +84,3 @@ SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum)
   UNPROTECT(3);
   return(outList);
 }
-
-

@@ -1,0 +1,11 @@
+include ${MKCONF}
+
+PKG_CPPFLAGS = -I. @MPI_CFLAGS@
+
+SOURCES_C = RhpcSerialize.c RhpcMS.c
+OBJECTS = $(SOURCES_C:.c=.o)
+
+all: $(OBJECTS)
+
+clean:
+	rm -f $(OBJECTS)
