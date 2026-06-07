@@ -1,0 +1,623 @@
+%\VignetteIndexEntry{Rhpcパッケージ入門 (Japanese)}
+%\VignetteEngine{utils::Sweave}
+%\VignetteEncoding{UTF-8}
+\documentclass{article}
+\usepackage{Sweave}
+% --- 追加: LaTeX で日本語を表示するための設定 ---
+\usepackage[whole]{bxcjkjatype} 
+\begin{document}
+
+% --- 追加: R の図で日本語フォントを使用するための設定 ---
+<<echo=FALSE, results=hide>>=
+grDevices::pdf.options(family="Japan1")
+@
+
+\title{Rhpcパッケージ入門}
+\author{Ei-ji Nakama}
+\maketitle
+
+\section{概要}
+\texttt{Rhpc}パッケージは、Message Passing Interface (MPI) を利用して、Rでハイパフォーマンスコンピューティング (HPC) を実現するためのインターフェースを提供します。
+ソケットや fork に依存する標準的な並列処理ライブラリとは異なり、MPIへの直接的かつ低レイテンシなアクセスを提供するため、マルチコアPCから大規模な計算クラスタまで対応可能です。
+
+\subsection{主な仕様}
+\begin{itemize}
+    \item \textbf{MPI専用API}: すべての関数に \texttt{Rhpc\_} プレフィックスが付与されており、名前空間の衝突を避け、MPI バックエンドであることを明示します（例: \texttt{Rhpc\_lapply}, \texttt{Rhpc\_worker\_call}）。
+    \item \textbf{動的なワーカー管理}: \texttt{mpirun} による静的起動と、実行時の \texttt{MPI\_Comm\_spawn} による動的生成の両方をサポートします。
+    \item \textbf{ハイブリッド通信}: 命令の配布には一括送信 (Collective communication) を、結果の回収には個別送信 (Point-to-Point) を使用し、スループットを最大化します。
+    \item \textbf{Windows 対応}: \texttt{fakemaster} 機構により、RGui や RStudio などの GUI 環境からでも複雑なコマンドライン起動なしに MPI を利用できます。
+    \item \textbf{long vector 対応}: やや大きなデータにも対応できるよう設計されています。
+\end{itemize}
+
+\section{インストールと起動方法}
+
+\subsection{Linux / Unix}
+MPI ライブラリ（OpenMPI、MPICH2 など）が必要です。パッケージをビルドしてインストールします。
+\begin{verbatim}
+R CMD INSTALL Rhpc_0.26-1.tar.gz
+\end{verbatim}
+
+Fujitsu MPI など他の MPI 実装を使う場合は、\texttt{--configure-args} でコンパイル・リンクフラグを指定します。
+
+\subsubsection{mpirun による起動（バッチ実行）}
+パッケージ内に生成される \texttt{Rhpc} シェルを使い、複数プロセスで R を起動します。
+\begin{verbatim}
+mpirun -n 4 ~/R/.../Rhpc/Rhpc CMD BATCH -q --no-save test.R
+\end{verbatim}
+
+\subsection{Windows (MS-MPI)}
+Microsoft MPI (MS-MPI) をインストールし、環境変数 \texttt{MSMPI\_INC}、\texttt{MSMPI\_LIB32}、\texttt{MSMPI\_LIB64} を設定します。
+RGui や RStudio から \texttt{Rhpc\_initialize()} を呼ぶだけで、\texttt{mpiexec} と \texttt{fakemaster} が自動起動されます。
+
+\section{基本的な使い方}
+\texttt{Rhpc}を使用するには、まず MPI 環境を初期化し、ワーカーのハンドル (\texttt{cl}) を取得します。
+\texttt{Rhpc\_getHandle()} の動作は呼び出し方によって異なります。
+\begin{itemize}
+    \item \textbf{引数なし}: R がすでに \texttt{mpirun} や \texttt{mpiexec} 下で起動されている場合、既存のワーカープロセスを取得します。
+    \item \textbf{数値引数}: 指定した数のワーカープロセスを動的に生成します（例: \texttt{Rhpc\_getHandle(4)}）。
+\end{itemize}
+
+典型的なワークフローは \texttt{Rhpc\_initialize()} $\rightarrow$ \texttt{Rhpc\_getHandle()} $\rightarrow$ 並列処理 $\rightarrow$ \texttt{Rhpc\_finalize()} です。
+
+<<echo=TRUE, eval=FALSE>>=
+library(Rhpc)
+# Rhpc 環境の初期化
+Rhpc_initialize()
+
+# ハンドルの取得（mpirun 下では引数なし、動的生成時は Rhpc_getHandle(4) など）
+cl <- Rhpc_getHandle()
+
+# 全ワーカーで関数を実行し、マスターに結果を集約
+pids <- Rhpc_worker_call(cl, Sys.getpid)
+print(pids)
+
+# 結果を返さずにワーカー上でコードを実行する場合
+Rhpc_worker_noback(cl, function() {
+    cat("worker process:", Sys.getpid(), "\n")
+})
+
+# 終了処理
+Rhpc_finalize()
+@
+
+\section{Windows でのバックエンド管理}
+Windows では \texttt{Rhpc\_initialize()} が次の処理を内部で行います。
+\begin{enumerate}
+    \item 現在の R プロセスが \texttt{mpiexec} 下で動いていなければ \texttt{fakemaster} を起動する。
+    \item \texttt{mpiexec} 経由で \texttt{fakemaster.exe} を起動し、名前付きパイプで R プロセスと接続する。
+    \item \texttt{fakemaster} が生成した MPI 環境変数を R プロセスに取り込む。
+    \item これにより GUI ベースの R セッションでも \texttt{Rhpc\_getHandle()} や \texttt{Rhpc\_worker\_call()} が利用可能になる。
+\end{enumerate}
+
+注意点:
+\begin{itemize}
+    \item \texttt{Rhpc\_initialize()} 実行時に \texttt{mpiexec} や \texttt{fakemaster} のウィンドウがバックグラウンドで起動します。これらを閉じると MPI 接続が切れ、処理が失敗します。
+    \item \texttt{options(Rhpc.mpiexec="mpiexec -n 1")} で \texttt{mpiexec} のコマンドラインを指定できます。
+\end{itemize}
+
+<<echo=TRUE, eval=FALSE>>=
+library(Rhpc)
+options(Rhpc.mpiexec = "mpiexec -n 1")
+Rhpc_initialize()
+cl <- Rhpc_getHandle(3)
+
+worker_env_info <- Rhpc_worker_call(cl, function() {
+    list(
+        computer_name = Sys.getenv("COMPUTERNAME"),
+        username = Sys.getenv("USERNAME")
+    )
+})
+print(worker_env_info)
+Rhpc_finalize()
+@
+
+\section{集団通信と個別通信の選択}
+\texttt{Rhpc} は MPI の \textbf{集団通信}（Collective）と \textbf{個別通信}（Point-to-Point, P2P）を用途に応じて使い分けます。
+選択の基本原則は次のとおりです。
+
+\begin{itemize}
+    \item \textbf{全ワーカーに同じ内容を送る} $\rightarrow$ 集団通信 (\texttt{MPI\_Bcast})
+    \item \textbf{ワーカーごとに内容が異なる} $\rightarrow$ 個別通信 (\texttt{MPI\_Isend} / \texttt{MPI\_Irecv})
+    \item \textbf{結果のサイズがワーカーごとに異なる} $\rightarrow$ 個別通信（非同期受信）
+    \item \textbf{結果を返さない} $\rightarrow$ 集団通信のみで完結
+\end{itemize}
+
+\subsection{通信方式の選択フロー}
+次の図は、Rhpc が各操作でどの通信方式を選ぶかを示すフローチャートです。
+
+<<echo=TRUE, fig=TRUE, width=8, height=7>>=
+draw_comm_decision_flow <- function() {
+    COL <- list(
+        start   = "#E8F4FD",
+        collect = "#D5F5E3",
+        p2p     = "#FDEBD0",
+        both    = "#E8DAEF",
+        text    = "#2C3E50"
+    )
+    box <- function(x, y, w, h, label, fill, lwd = 1.5) {
+        rect(x - w/2, y - h/2, x + w/2, y + h/2,
+             col = fill, border = COL$text, lwd = lwd)
+        text(x, y, label, cex = 0.78, col = COL$text)
+    }
+    arrow <- function(x1, y1, x2, y2, label = NULL) {
+        segments(x1, y1, x2, y2, lwd = 1.4, col = COL$text)
+        dx <- x2 - x1; dy <- y2 - y1
+        len <- sqrt(dx^2 + dy^2)
+        if (len > 0) {
+            ux <- dx / len; uy <- dy / len
+            arr <- 0.18
+            arrows(x2 - ux * arr, y2 - uy * arr, x2, y2,
+                   length = 0.08, lwd = 1.4, col = COL$text)
+        }
+        if (!is.null(label)) {
+            text((x1 + x2) / 2 + 0.15, (y1 + y2) / 2, label, cex = 0.72, col = "#555555")
+        }
+    }
+
+    par(mar = c(1, 1, 3, 1))
+    plot(c(0, 10), c(0, 14), type = "n", axes = FALSE, xlab = "", ylab = "",
+         main = "Rhpc: 集団通信 vs 個別通信の選択")
+
+    box(5, 13, 4.2, 0.9, "Rhpc 関数呼び出し", COL$start)
+
+    box(5, 11.2, 5.0, 0.9, "全ワーカーに同じ命令・関数を送る?", "#FFFFFF")
+    arrow(5, 12.55, 5, 11.65)
+
+    box(2.2, 9.2, 3.2, 1.0, "はい\n(MPI_Bcast)", COL$collect)
+    box(7.8, 9.2, 3.2, 1.0, "いいえ\n(MPI_Isend 個別配布)", COL$p2p)
+    arrow(4.2, 11.2, 2.2, 9.7, "同一")
+    arrow(5.8, 11.2, 7.8, 9.7, "個別")
+
+    box(2.2, 7.0, 3.4, 0.9, "結果をマスターに返す?", "#FFFFFF")
+    arrow(2.2, 8.7, 2.2, 7.45)
+
+    box(0.9, 5.0, 2.4, 0.9, "いいえ\nBcast のみ", COL$collect)
+    box(3.5, 5.0, 2.6, 0.9, "はい\nBcast + P2P", COL$both)
+    arrow(1.5, 6.55, 0.9, 5.45, "noback\nExport")
+    arrow(2.9, 6.55, 3.5, 5.45, "worker_call\nlapply 結果")
+
+    box(7.8, 7.0, 3.6, 0.9, "入力データを\nワーカー別に分割?", "#FFFFFF")
+    arrow(7.8, 8.7, 7.8, 7.45)
+
+    box(6.3, 5.0, 2.6, 0.9, "lapply\n(チャンク分割)", COL$p2p)
+    box(9.3, 5.0, 2.6, 0.9, "lapplyLB\n(1要素ずつ)", COL$p2p)
+    arrow(7.0, 6.55, 6.3, 5.45, "一括")
+    arrow(8.6, 6.55, 9.3, 5.45, "逐次")
+
+    box(5, 2.8, 8.5, 1.6,
+        paste(
+            "集団通信: 命令・関数・引数 (全員同一)  |  ",
+            "個別通信: 入力チャンク・結果・終了信号 (ワーカーごと)",
+            sep = "\n"
+        ),
+        "#F8F9F9", lwd = 1)
+    arrow(0.9, 4.55, 2.5, 3.6)
+    arrow(3.5, 4.55, 4.0, 3.6)
+    arrow(6.3, 4.55, 5.5, 3.6)
+    arrow(9.3, 4.55, 7.5, 3.6)
+
+    legend("bottom", inset = 0.02, horiz = TRUE, bty = "n", cex = 0.75,
+           legend = c("集団通信 (MPI_Bcast/Gather)", "個別通信 (MPI_Isend/Irecv)", "両方"),
+           fill = c(COL$collect, COL$p2p, COL$both), border = COL$text)
+}
+draw_comm_decision_flow()
+@
+
+\subsection{MPI 関数と役割}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{通信種別} & \textbf{MPI 関数} & \textbf{Rhpc での用途} \\
+\hline
+集団通信 & \texttt{MPI\_Bcast} & 命令・関数・引数を全ワーカーへ一括配布 \\
+集団通信 & \texttt{MPI\_Gather} & 各ワーカーの結果サイズ情報をマスターへ集約 \\
+個別通信 & \texttt{MPI\_Isend} & マスター$\to$ワーカー（入力チャンク）、ワーカー$\to$マスター（結果） \\
+個別通信 & \texttt{MPI\_Irecv} & マスターが各ワーカーから結果を非同期受信 \\
+個別通信 & \texttt{MPI\_Probe} & \texttt{lapply}/\texttt{lapplyLB} で完了したワーカーを検出 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{関数別シーケンス図}
+以下に、主要関数ごとの通信シーケンス図を示します。
+図はすべて R の \texttt{plot} で描画しています。
+
+<<echo=FALSE>>=
+draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
+                                  xlim = c(0, 10), show_legend = TRUE) {
+    COL <- list(c = "#27AE60", p = "#E67E22", e = "#3498DB", r = "#C0392B")
+    lanes <- c("Master", paste0("W", seq_len(nworkers)))
+    nl <- length(lanes)
+    y <- rev(seq_len(nl))
+    ym <- y[1]
+
+    par(mar = c(3, 2, 3, 2))
+    plot(xlim, c(0.3, nl + 0.8), type = "n", xaxt = "n", yaxt = "n",
+         xlab = "time ->", ylab = "", main = title)
+    for (i in seq_along(lanes)) {
+        text(0.25, y[i], lanes[i], adj = 0, font = 2, cex = 0.85)
+        segments(0.75, y[i], xlim[2] - 0.2, y[i], lty = 2, col = "#BBBBBB")
+    }
+
+    bcast_all <- function(x, label) {
+        text(x, nl + 0.55, label, cex = 0.68, col = COL$c, font = 2)
+        for (i in 2:nl) arrows(x, ym, x + 0.32, y[i], length = 0.05, col = COL$c, lwd = 1.4)
+    }
+    gather_all <- function(x, label) {
+        text(x, nl + 0.55, label, cex = 0.68, col = COL$c, font = 2)
+        for (i in 2:nl) arrows(x + 0.32, y[i], x, ym, length = 0.05, col = COL$c, lwd = 1.4)
+    }
+    p2p_m2w <- function(x1, x2, w, label) {
+        wy <- y[w + 1]
+        arrows(x1, ym, x2, wy, length = 0.05, col = COL$p, lwd = 1.4)
+        text((x1 + x2) / 2, (ym + wy) / 2 + 0.22, label, cex = 0.6, col = COL$p)
+    }
+    p2p_w2m <- function(x1, x2, w, label) {
+        wy <- y[w + 1]
+        arrows(x1, wy, x2, ym, length = 0.05, col = COL$r, lwd = 1.4)
+        text((x1 + x2) / 2, (ym + wy) / 2 - 0.22, label, cex = 0.6, col = COL$r)
+    }
+    exec_w <- function(x, w, label = "run") {
+        wy <- y[w + 1]
+        rect(x - 0.22, wy - 0.11, x + 0.22, wy + 0.11, col = COL$e, border = NA)
+        text(x, wy, label, cex = 0.52, col = "white", font = 2)
+    }
+    exec_all <- function(x, label = "run") {
+        for (i in seq_len(nworkers)) exec_w(x, i, label)
+    }
+    loop_box <- function(x1, x2, ylo, yhi, label) {
+        rect(x1, ylo, x2, yhi, border = "#999999", col = NA, lty = 2)
+        text((x1 + x2) / 2, yhi + 0.15, label, cex = 0.65, col = "#666666", font = 3)
+    }
+    note <- function(x, yy, label) {
+        text(x, yy, label, cex = 0.65, col = "#555555")
+    }
+
+    for (ev in events) {
+        switch(ev$type,
+               bcast_all = bcast_all(ev$x, ev$label),
+               gather_all = gather_all(ev$x, ev$label),
+               p2p_m2w = p2p_m2w(ev$x1, ev$x2, ev$w, ev$label),
+               p2p_w2m = p2p_w2m(ev$x1, ev$x2, ev$w, ev$label),
+               exec_w = exec_w(ev$x, ev$w, ev$label %||% "run"),
+               exec_all = exec_all(ev$x, ev$label %||% "run"),
+               loop_box = loop_box(ev$x1, ev$x2, ev$ylo, ev$yhi, ev$label),
+               note = note(ev$x, ev$y, ev$label))
+    }
+
+    if (show_legend) {
+        legend(xlim[2] - 2.8, 0.45,
+               legend = c("Collective", "P2P (send)", "Compute", "P2P (result)"),
+               fill = c(COL$c, COL$p, COL$e, COL$r), border = NA, bty = "n", cex = 0.7)
+    }
+}
+`%||%` <- function(a, b) if (is.null(a)) b else a
+@
+
+\subsubsection{Rhpc\_worker\_noback()}
+結果を返さないワーカー実行。集団通信 (\texttt{MPI\_Bcast}) のみで完結します。
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_worker_noback",
+    list(
+        list(type = "bcast_all", x = 1.0, label = "Bcast: cmd (NORET)"),
+        list(type = "bcast_all", x = 2.2, label = "Bcast: FUN+args"),
+        list(type = "exec_all",  x = 3.8, label = "FUN()"),
+        list(type = "note",      x = 5.5, y = 1.2, label = "(no result returned)")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_Export()}
+変数を全ワーカーのグローバル環境へ配布。\texttt{Rhpc\_worker\_noback} と同様 \texttt{MPI\_Bcast} のみですが、
+ワーカー側では \texttt{assign()} が実行されます。変数ごとに Bcast が繰り返されます。
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_Export",
+    list(
+        list(type = "bcast_all", x = 1.0, label = "Bcast: cmd (EXPORT)"),
+        list(type = "bcast_all", x = 2.2, label = "Bcast: name+value"),
+        list(type = "exec_all",  x = 3.8, label = "assign()"),
+        list(type = "loop_box",  x1 = 0.7, x2 = 4.5, ylo = 0.55, yhi = 4.3,
+             label = "repeat for each variable"),
+        list(type = "note",      x = 5.8, y = 1.2, label = "(no result returned)")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_worker\_call()}
+全ワーカーで同一関数を実行し、結果をマスターへ返します。
+命令配布は Bcast、結果サイズは Gather、結果本体は P2P (Isend/Irecv) です。
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_worker_call",
+    list(
+        list(type = "bcast_all", x = 0.8,  label = "Bcast: cmd (RET)"),
+        list(type = "bcast_all", x = 1.8,  label = "Bcast: FUN+args"),
+        list(type = "exec_all",  x = 3.0,  label = "FUN()"),
+        list(type = "gather_all", x = 4.2, label = "Gather: result size"),
+        list(type = "p2p_w2m", x1 = 5.2, x2 = 5.8, w = 1, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.5, x2 = 6.1, w = 2, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.8, x2 = 6.4, w = 3, label = "Isend/Irecv"),
+        list(type = "note",    x = 7.2, y = 1.2, label = "return list of results")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_EvalQ()}
+\texttt{Rhpc\_worker\_call(cl, eval, substitute(expr))} のラッパーです。
+通信パターンは \texttt{Rhpc\_worker\_call} と同一です。
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_EvalQ",
+    list(
+        list(type = "bcast_all", x = 0.8,  label = "Bcast: cmd (RET)"),
+        list(type = "bcast_all", x = 1.8,  label = "Bcast: eval+expr"),
+        list(type = "exec_all",  x = 3.0,  label = "eval(expr)"),
+        list(type = "gather_all", x = 4.2, label = "Gather: result size"),
+        list(type = "p2p_w2m", x1 = 5.2, x2 = 5.8, w = 1, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.5, x2 = 6.1, w = 2, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.8, x2 = 6.4, w = 3, label = "Isend/Irecv"),
+        list(type = "note",    x = 7.2, y = 1.2, label = "return list of results")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_lapply()}
+入力 \texttt{X} をワーカー数に応じてチャンク分割し、関数は Bcast、入力チャンクは P2P で配布します。
+結果は \texttt{MPI\_Probe}/\texttt{MPI\_Irecv} で完了順に回収し、最後に終了信号を P2P 送信します。
+
+<<echo=TRUE, fig=TRUE, width=10, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_lapply",
+    list(
+        list(type = "bcast_all", x = 0.7, label = "Bcast: cmd+FUN+args"),
+        list(type = "p2p_m2w", x1 = 1.6, x2 = 2.1, w = 1, label = "Isend: chunk1"),
+        list(type = "p2p_m2w", x1 = 1.75, x2 = 2.25, w = 2, label = "Isend: chunk2"),
+        list(type = "p2p_m2w", x1 = 1.9, x2 = 2.4, w = 3, label = "Isend: chunk3"),
+        list(type = "exec_all",  x = 3.3, label = "lapply"),
+        list(type = "p2p_w2m", x1 = 4.3, x2 = 4.9, w = 2, label = "Probe/Irecv"),
+        list(type = "p2p_w2m", x1 = 4.8, x2 = 5.4, w = 1, label = "Probe/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.3, x2 = 5.9, w = 3, label = "Probe/Irecv"),
+        list(type = "loop_box", x1 = 4.0, x2 = 6.2, ylo = 0.55, yhi = 4.3,
+             label = "until all chunks done"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 1, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 2, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 3, label = "exit")
+    ),
+    nworkers = 3, xlim = c(0, 10)
+)
+@
+
+\subsubsection{Rhpc\_lapplyLB()}
+関数は Bcast しますが、入力は \textbf{1要素ずつ} 空きワーカーへ P2P 配布します。
+ワーカーが完了するたびに次の要素を送り、結果も逐次 P2P で回収します。
+
+<<echo=TRUE, fig=TRUE, width=10, height=5.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_lapplyLB",
+    list(
+        list(type = "bcast_all", x = 0.7, label = "Bcast: cmd+FUN+args"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 1, label = "Isend: x[1]"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 2, label = "Isend: x[2]"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 3, label = "Isend: x[3]"),
+        list(type = "exec_w",   x = 2.8, w = 1, label = "FUN"),
+        list(type = "exec_w",   x = 2.8, w = 2, label = "FUN"),
+        list(type = "exec_w",   x = 2.8, w = 3, label = "FUN"),
+        list(type = "p2p_w2m", x1 = 3.5, x2 = 4.0, w = 1, label = "Irecv: res"),
+        list(type = "p2p_m2w", x1 = 4.2, x2 = 4.65, w = 1, label = "Isend: x[4]"),
+        list(type = "p2p_w2m", x1 = 5.0, x2 = 5.5, w = 3, label = "Irecv: res"),
+        list(type = "p2p_m2w", x1 = 5.7, x2 = 6.15, w = 3, label = "Isend: x[5]"),
+        list(type = "loop_box", x1 = 3.2, x2 = 6.5, ylo = 0.55, yhi = 4.3,
+             label = "while tasks remain: send to idle worker, recv result"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 1, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 2, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 3, label = "exit")
+    ),
+    nworkers = 3, xlim = c(0, 10)
+)
+@
+
+\subsubsection{Rhpc\_setupRNG()}
+\texttt{Rhpc\_getHandle()} 内で自動呼び出されます。内部で \texttt{Rhpc\_lapply} を使い、
+各ワーカーへ異なる乱数シードを P2P 相当で配布します（\texttt{lapply} と同じ通信パターン）。
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_setupRNG (via Rhpc_lapply)",
+    list(
+        list(type = "bcast_all", x = 0.8, label = "Bcast: cmd+FUN"),
+        list(type = "p2p_m2w", x1 = 1.7, x2 = 2.15, w = 1, label = "seed[1]"),
+        list(type = "p2p_m2w", x1 = 1.85, x2 = 2.3, w = 2, label = "seed[2]"),
+        list(type = "p2p_m2w", x1 = 2.0, x2 = 2.45, w = 3, label = "seed[3]"),
+        list(type = "exec_all",  x = 3.2, label = "set seed"),
+        list(type = "p2p_w2m", x1 = 4.2, x2 = 4.75, w = 1, label = "done"),
+        list(type = "p2p_w2m", x1 = 4.5, x2 = 5.05, w = 2, label = "done"),
+        list(type = "p2p_w2m", x1 = 4.8, x2 = 5.35, w = 3, label = "done"),
+        list(type = "note", x = 6.5, y = 1.2, label = "L'Ecuyer-CMRG stream per worker")
+    ),
+    nworkers = 3
+)
+@
+
+\subsection{通信方式の比較}
+次の図は、主要関数ごとの通信方式の違いを一覧で示します。
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_comm_comparison <- function() {
+    funcs <- c("noback", "Export", "call", "EvalQ", "lapply", "lapplyLB", "setupRNG")
+    bcast <- c(1, 1, 1, 1, 1, 1, 1)
+    gather <- c(0, 0, 1, 1, 0, 0, 0)
+    isend_in <- c(0, 0, 0, 0, 1, 1, 1)
+    irecv_out <- c(0, 0, 1, 1, 1, 1, 1)
+
+    mat <- rbind(
+        "MPI_Bcast\n(命令・関数)" = bcast,
+        "MPI_Gather\n(結果サイズ)" = gather,
+        "MPI_Isend\n(入力/タスク)" = isend_in,
+        "MPI_Irecv\n(結果回収)" = irecv_out
+    )
+    colnames(mat) <- funcs
+
+    par(mar = c(6, 8, 3, 2))
+    barplot(mat, beside = TRUE, col = c("#27AE60", "#8E44AD", "#E67E22", "#C0392B"),
+            border = NA, las = 2, cex.names = 0.85,
+            main = "関数別: 使用する MPI 通信方式",
+            ylab = "使用 (1) / 不使用 (0)", ylim = c(0, 1.35))
+    legend("top", inset = 0.02, horiz = TRUE, bty = "n", cex = 0.75,
+           legend = rownames(mat),
+           fill = c("#27AE60", "#8E44AD", "#E67E22", "#C0392B"))
+}
+draw_comm_comparison()
+@
+
+\subsection{なぜこの使い分けか}
+\begin{itemize}
+    \item \textbf{Bcast を命令に使う理由}:
+          関数と引数は全ワーカーで同一です。1回のシリアライズと木構造配布 ($O(\log N)$) で、
+          各ワーカーへ順次送信する $O(N)$ より効率的です。
+    \item \textbf{P2P を入力データに使う理由 (\texttt{lapply})}:
+          各ワーカーへの入力チャンクは内容・サイズが異なります。Bcast は全員に同じデータを送るため不適切です。
+    \item \textbf{P2P を結果に使う理由}:
+          各ワーカーの結果サイズは実行時まで不明で、ワーカー間で異なります。
+          \texttt{MPI\_Irecv} による非同期受信で、速いワーカーの結果を先に処理できます。
+    \item \textbf{\texttt{lapplyLB} が P2P 逐次配布を選ぶ理由}:
+          タスクの実行時間にばらつきがある場合、事前チャンク分割 (\texttt{lapply}) より
+          空きワーカーへの動的割当 (\texttt{lapplyLB}) の方が CPU 利用率が高くなります。
+\end{itemize}
+
+\section{主要な関数一覧}
+
+\subsection{環境管理}
+\begin{itemize}
+    \item \texttt{Rhpc\_initialize()}: MPI 環境を初期化する。
+    \item \texttt{Rhpc\_finalize()}: MPI 環境を終了する。
+    \item \texttt{Rhpc\_getHandle(procs)}: ワーカークラスタのハンドルを取得する。\texttt{procs} に数値を指定すると動的生成する。
+    \item \texttt{Rhpc\_numberOfWorker(cl)}: ワーカー数を返す。
+\end{itemize}
+
+\subsection{ワーカー上での実行}
+\begin{itemize}
+    \item \texttt{Rhpc\_worker\_call(cl, FUN, ...)}: 全ワーカーで \texttt{FUN} を実行し、結果のリストを返す。
+    \item \texttt{Rhpc\_worker\_noback(cl, FUN, ...)}: 全ワーカーで \texttt{FUN} を実行するが、結果は返さない。
+    \item \texttt{Rhpc\_worker\_shy(cl, FUN, ...)}: \texttt{Rhpc\_worker\_noback} と同様（結果を返さない）。
+    \item \texttt{Rhpc\_EvalQ(cl, expr)}: 全ワーカーで式 \texttt{expr} を評価する（\texttt{clusterEvalQ} 相当）。
+\end{itemize}
+
+\subsection{並列 *apply 系}
+\begin{itemize}
+    \item \texttt{Rhpc\_lapply(cl, X, FUN, ...)}: \texttt{lapply} と同様にリスト/ベクトルを並列処理する。入力をチャンク分割して各ワーカーに配布する。
+    \item \texttt{Rhpc\_lapplyLB(cl, X, FUN, ...)}: ロードバランシング版。タスクを空いたワーカーに逐次割り当て、実行時間にばらつきがある場合に有効。
+    \item \texttt{Rhpc\_sapply(cl, X, FUN, ...)}: \texttt{sapply} 相当。結果をベクトルや行列に簡略化できる。
+    \item \texttt{Rhpc\_sapplyLB(cl, X, FUN, ...)}: ロードバランシング版 \texttt{sapply}。
+    \item \texttt{Rhpc\_apply(cl, X, MARGIN, FUN, ...)}: \texttt{apply} 相当。配列の指定次元に沿って並列適用する。
+\end{itemize}
+
+\subsection{データ共有とユーティリティ}
+\begin{itemize}
+    \item \texttt{Rhpc\_Export(cl, variableNames)}: マスターで定義した変数を全ワーカーのグローバル環境に配布する。
+    \item \texttt{Rhpc\_setupRNG(cl, iseed)}: 各ワーカーに独立した乱数ストリーム (L'Ecuyer-CMRG) を設定する。\texttt{Rhpc\_getHandle()} 内で自動呼び出される。
+    \item \texttt{Rhpc\_enquote(...)}: 引数をクォートする内部ユーティリティ。
+    \item \texttt{Rhpc\_splitList(var, num)}: リストを指定数に分割する。
+    \item \texttt{Rhpc\_serialize()} / \texttt{Rhpc\_unserialize()}: カスタムシリアライズ関数。
+\end{itemize}
+
+\section{並列マッピング (Rhpc\_lapply)}
+\texttt{Rhpc\_lapply} は \texttt{lapply} と同じインターフェースで、入力データをワーカー数に応じてチャンク分割し並列実行します。
+
+<<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+
+input_data <- 1:10
+results <- Rhpc_lapply(cl, input_data, function(x) {
+    return(x^2)
+})
+print(unlist(results))
+
+Rhpc_finalize()
+@
+
+\section{ロードバランシング (Rhpc\_lapplyLB)}
+各要素の実行時間にばらつきがある場合、\texttt{Rhpc\_lapplyLB} が有効です。
+事前チャンク分割ではなく、空いたワーカーにタスクを逐次割り当てるため、CPU 利用率が向上します。
+
+<<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+input_data <- 1:10
+
+results_lb <- Rhpc_lapplyLB(cl, input_data, function(x) {
+    Sys.sleep(runif(1, 0, 1))  # 実行時間のばらつきを模擬
+    return(x * 10)
+})
+print(unlist(results_lb))
+Rhpc_finalize()
+@
+
+\section{sapply / apply の利用}
+\texttt{Rhpc\_sapply} や \texttt{Rhpc\_apply} も \texttt{parallel} パッケージと同様の使い方ができます。
+
+<<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+
+# sapply 相当
+res <- Rhpc_sapply(cl, 1:10000, sqrt)
+
+# apply 相当
+df <- data.frame(a = 1:4, b = 5:8)
+Rhpc_apply(cl, df, 1, max)  # 行方向
+Rhpc_apply(cl, df, 2, max)  # 列方向
+
+Rhpc_finalize()
+@
+
+\section{変数のワーカーへのエクスポート}
+ワーカー側でマスターで定義した変数を使う場合、\texttt{Rhpc\_Export} でグローバル環境に配布します。
+
+<<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+
+multiplier <- 10
+Rhpc_Export(cl, "multiplier")
+
+res <- Rhpc_worker_call(cl, function() {
+    return(multiplier * 2)
+})
+print(res)
+
+Rhpc_finalize()
+@
+
+\section{オプションと MPI 属性}
+\texttt{Rhpc\_initialize()} 後、次のオプションが \texttt{options()} に設定されます。
+\begin{itemize}
+    \item \texttt{Rhpc.mpi.rank}: 現在の MPI ランク
+    \item \texttt{Rhpc.mpi.procs}: 総プロセス数
+    \item \texttt{Rhpc.mpi.c.comm}: C 言語 MPI コミュニケータ（ポインタ）
+    \item \texttt{Rhpc.mpi.f.comm}: Fortran MPI コミュニケータ
+\end{itemize}
+
+\texttt{usequote} 引数（デフォルト \texttt{TRUE}）は \texttt{options(Rhpc.usequote=FALSE)} で無効化でき、パフォーマンス向上が期待できます。
+
+\section{まとめ}
+\texttt{Rhpc}を利用することで、R の統計プログラミングの柔軟性と MPI の高いパフォーマンスを両立できます。
+主な利点は次のとおりです。
+\begin{itemize}
+    \item \textbf{効率性}: ソケットベースの並列処理と比べ通信オーバーヘッドが小さい。
+    \item \textbf{スケーラビリティ}: ローカルマルチコアから大規模クラスタへの移行がスムーズ。
+    \item \textbf{簡便性}: \texttt{lapply} や \texttt{apply} と同じ R スタイルの構文で並列化できる。
+    \item \textbf{Windows 対応}: GUI 環境からでも \texttt{fakemaster} により MPI を利用可能。
+\end{itemize}
+
+\end{document}

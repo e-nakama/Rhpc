@@ -18,6 +18,8 @@ SystemRequirements: R built as a shared or static library, 'MPI'
 Description: Function of apply style using 'MPI' provides better 'HPC' environment on R.
  And this package supports long vector, can deal with slightly big data.
 License: AGPL-3
+VignetteBuilder: utils
+Suggests: utils
 URL: https://github.com/e-nakama/Rhpc
 ByteCompile: true
 NeedsCompilation: yes

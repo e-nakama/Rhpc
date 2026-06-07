@@ -7,7 +7,10 @@
 ### *nix-based OS
 
 #### OpenMPI or MPICH2
+To build a compressed source package (recommended):
 ```bash
+apt install qpdf ghostscript
+R CMD build --compact-vignettes=both Rhpc
 R CMD INSTALL Rhpc_0.yy-yday.tar.gz
 ```
 
@@ -68,7 +71,7 @@ On Windows, Rhpc uses the `fakemaster` program so that MPI can be used from GUI 
 ```r
 library(Rhpc)
 # Specify mpiexec arguments if needed
-options(Rhpc.mpiexec="mpiexec -n 1")
+options(Rhpc.mpiexec="mpiexec -hosts=host1 -n 1")
 
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)
