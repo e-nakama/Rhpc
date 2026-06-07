@@ -1,9 +1,9 @@
-# 共有ライブラリのロードとルーチン登録の有効化
+# Load shared library and enable routine registration
 useDynLib(Rhpc, .registration = TRUE)
 
-# ユーザーに公開する関数を明示的にエクスポートします
-# 例: export(RhpcApply, RhpcLapply) 
-# 実際の公開関数名に合わせて書き換えてください
+# Explicitly export functions to be made public to users
+# Example: export(RhpcApply, RhpcLapply) 
+# Rewrite according to the actual public function names
 exportPattern("^Rhpc")
 
 importFrom("parallel", nextRNGStream)
