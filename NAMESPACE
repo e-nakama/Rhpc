@@ -1,2 +1,9 @@
-exportPattern("^[[:alpha:]]+")
-importFrom("parallel",nextRNGStream)
+# 共有ライブラリのロードとルーチン登録の有効化
+useDynLib(Rhpc, .registration = TRUE)
+
+# ユーザーに公開する関数を明示的にエクスポートします
+# 例: export(RhpcApply, RhpcLapply) 
+# 実際の公開関数名に合わせて書き換えてください
+exportPattern("^Rhpc")
+
+importFrom("parallel", nextRNGStream)
