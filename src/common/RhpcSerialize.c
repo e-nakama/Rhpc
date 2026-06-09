@@ -24,9 +24,65 @@
 
 #include <stdlib.h>
 #include <string.h>
-#define USE_RINTERNALS
-#include <Rinternals.h>
-#include <R_ext/Memory.h>
+#include "Rhpc.h"
+
+/*
+ * Persistent Memory Streams
+ */
+
+typedef struct membuf_st {
+    R_xlen_t size;
+    R_xlen_t count;
+    unsigned char *buf;
+    int overflow;
+} *membuf_t;
+
+/* ALTREP Class definition */
+R_altrep_class_t Rhpc_SerializedRaw_class;
+int Rhpc_altrep_initialized = 0;
+
+static R_xlen_t SerializedRaw_length(SEXP x) {
+    membuf_t mb = (membuf_t)R_ExternalPtrAddr(R_altrep_data1(x));
+    return mb->count;
+}
+
+static void *SerializedRaw_dataptr(SEXP x, Rboolean writeable) {
+    membuf_t mb = (membuf_t)R_ExternalPtrAddr(R_altrep_data1(x));
+    return mb->buf;
+}
+
+static const void *SerializedRaw_dataptr_or_null(SEXP x) {
+    // This method is called when R needs a pointer to the data, but it might not be writeable.
+    membuf_t mb = (membuf_t)R_ExternalPtrAddr(R_altrep_data1(x));
+    return mb->buf;
+}
+
+static void membuf_finalizer(SEXP ptr) {
+    membuf_t mb = (membuf_t)R_ExternalPtrAddr(ptr);
+    if (mb) {
+        if (mb->buf) free(mb->buf);
+        free(mb);
+        R_SetExternalPtrAddr(ptr, NULL);
+        R_ClearExternalPtr(ptr); // Clear the external pointer to prevent double-free issues
+    }
+}
+
+/* Class initialization (must be called when the package is loaded) */
+void Rhpc_init_serialize_altrep(DllInfo *dll) {
+    if (Rhpc_altrep_initialized) return;
+    R_altrep_class_t cls = R_make_altraw_class("Rhpc_serialized_raw", "Rhpc", dll);
+    Rhpc_SerializedRaw_class = cls;
+    R_set_altrep_Length_method(cls, SerializedRaw_length); // This is correct for all altrep types
+    R_set_altvec_Dataptr_method(cls, SerializedRaw_dataptr);
+    R_set_altvec_Dataptr_or_null_method(cls, SerializedRaw_dataptr_or_null);
+    Rhpc_altrep_initialized = 1;
+}
+
+static void init_altrep_lazy(void) {
+    if (!Rhpc_altrep_initialized) {
+        Rhpc_init_serialize_altrep(NULL);
+    }
+}
 
 /* Based on R 4.x serialization defaults */
 static int defaultSerializeVersion(void)
@@ -43,16 +99,6 @@ static int defaultSerializeVersion(void)
     }
     return dflt;
 }
-
-/*
- * Persistent Memory Streams
- */
-
-typedef struct membuf_st {
-    R_xlen_t size;
-    R_xlen_t count;
-    unsigned char *buf;
-} *membuf_t;
 
 #define MAXELTSIZE 8192
 #define INCR MAXELTSIZE
@@ -191,9 +237,9 @@ static void free_mem_buffer(void *data)
 {
     membuf_t mb = data;
     if (mb->buf != NULL) {
-	unsigned char *buf = mb->buf;
-	mb->buf = NULL;
-	free(buf);
+        unsigned char *buf = mb->buf;
+        mb->buf = NULL;
+        free(buf);
     }
 }
 
@@ -222,6 +268,13 @@ static SEXP CloseMemOutPStream_onlysize(R_outpstream_t stream)
 
 /** ---- **/
 
+/* Context structure for R_UnwindProtect */
+struct serialize_context {
+    SEXP object;
+    R_outpstream_t out;
+    membuf_t mb;
+};
+
 static R_xlen_t Rhpc_get_serialize_size_internal(SEXP object)
 {
     struct R_outpstream_st out;
@@ -236,18 +289,27 @@ static R_xlen_t Rhpc_get_serialize_size_internal(SEXP object)
 SEXP Rhpc_serialize(SEXP object)
 {
     struct R_outpstream_st out;
-    R_pstream_format_t type;
-    int version;
-    struct membuf_st mbs;
+    membuf_t mb;
     SEXP val;
 
-    version = defaultSerializeVersion();
-    type = R_pstream_binary_format;
+    init_altrep_lazy();
 
-    InitMemOutPStream(&out, &mbs, type, version, NULL, R_NilValue);
+    mb = (membuf_t) malloc(sizeof(struct membuf_st));
+    if (mb == NULL) error("cannot allocate membuf");
+    mb->buf = NULL; mb->size = 0; mb->count = 0;
+
+    R_InitOutPStream(&out, (R_pstream_data_t) mb, R_pstream_binary_format, 
+                     defaultSerializeVersion(), OutCharMem, OutBytesMem, NULL, R_NilValue);
+
     R_Serialize(object, &out);
-    val =  CloseMemOutPStream(&out);
+
+    /* Pass to R as an ALTREP object (no copy) */
+    SEXP mbeptr;
+    PROTECT(mbeptr = R_MakeExternalPtr(mb, R_NilValue, R_NilValue));
+    R_RegisterCFinalizer(mbeptr, membuf_finalizer);
     
+    val = R_new_altrep(Rhpc_SerializedRaw_class, mbeptr, R_NilValue);
+    UNPROTECT(1); /* mbeptr */
     return val;
 }
 
@@ -272,6 +334,7 @@ SEXP Rhpc_serialize_norealloc(SEXP object)
     mbs.size = Rhpc_get_serialize_size_internal(object);
     PROTECT(val = allocVector(RAWSXP, mbs.size));
     mbs.buf  = RAW(val);
+    mbs.overflow = 0;
     
     InitMemOutPStream_norealloc(&out, &mbs, type, version, NULL, R_NilValue);
     R_Serialize(object, &out);

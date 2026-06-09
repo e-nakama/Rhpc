@@ -35,6 +35,7 @@
 #include <R.h>
 #include <Rinternals.h>
 #include <R_ext/Utils.h>
+#include <R_ext/Altrep.h>
 #include <R_ext/RS.h>
 #include <R_ext/Rdynload.h>
 #include <R_ext/Parse.h>
@@ -93,7 +94,7 @@ static inline int _M(int _X)
   int  _el = 0;
   char _em[MPI_MAX_ERROR_STRING];
   if ( MPI_SUCCESS != _ec ){
-    MPI_Error_string(_ec, _em, &_el); // MPIエラーメッセージを取得
+    MPI_Error_string(_ec, _em, &_el); // Get MPI error message
     error("%s", _em);
   }
   return _ec;
@@ -133,6 +134,10 @@ static inline SEXP _CHK(SEXP _X)
   return ret;
 }
 
+/* ALTREP Class definition and initialization flag */
+extern R_altrep_class_t Rhpc_SerializedRaw_class;
+extern int Rhpc_altrep_initialized;
+void Rhpc_init_serialize_altrep(DllInfo *dll);
 
 SEXP Rhpc_serialize(SEXP);
 SEXP Rhpc_serialize_onlysize(SEXP);
