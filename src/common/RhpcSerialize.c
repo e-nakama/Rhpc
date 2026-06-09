@@ -65,7 +65,7 @@ static void resize_buffer(membuf_t mb, R_xlen_t needed)
     if (needed < 10000000) /* ca 10MB */
 	needed = (1+2*needed/INCR) * INCR;
     else 
-	needed = (R_xlen_t)((1+1.2*(double)needed/INCR) * INCR);
+	needed = (R_xlen_t)((1+1.5*(double)needed/INCR) * INCR);
 
     tmp = realloc(mb->buf, needed);
     if (tmp == NULL) {

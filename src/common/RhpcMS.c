@@ -22,25 +22,26 @@
 
 SEXP Rhpc_enquote(SEXP arg)
 {
-  R_xlen_t i;
+  R_xlen_t i, len = xlength(arg);
   SEXP argq=R_NilValue;
   SEXP nm = getAttrib(arg, R_NamesSymbol);
+  SEXP quote_sym;
   PROTECT_INDEX pqix;
   PROTECT(nm);
   PROTECT_WITH_INDEX(argq, &pqix);  
-  argq = allocVector(VECSXP, xlength(arg));
+  argq = allocVector(VECSXP, len);
   REPROTECT(argq , pqix);
-  for(i=0;i<xlength(arg);i++){
+  quote_sym = install("quote");
+  PROTECT(quote_sym);
+  for(i=0;i<len;i++){
     SEXP ll, aa;
     PROTECT(aa = CONS(VECTOR_ELT(arg,i),R_NilValue));
-    PROTECT(ll = LCONS(install("quote"),aa));
+    PROTECT(ll = LCONS(quote_sym,aa));
     SET_VECTOR_ELT(argq, i, ll);
-    REPROTECT(argq ,pqix);
     UNPROTECT(2);
   }
   setAttrib(argq, R_NamesSymbol, duplicate(nm));
-  REPROTECT(argq ,pqix);
-  UNPROTECT(2);
+  UNPROTECT(3);
   return(argq);
 }
 
@@ -64,22 +65,27 @@ SEXP Rhpc_splitList(SEXP orgList, SEXP splitNum)
   PROTECT(origListClass = getAttrib(orgList, R_ClassSymbol));
 
   for ( i=0; i< spnum; i++){
-    SEXP work, workNm;
-    PROTECT(work   = allocVector(VECSXP,SPLITSIZEIX(sz,spnum,i)));
-    PROTECT(workNm = allocVector(STRSXP,SPLITSIZEIX(sz,spnum,i)));
-    for ( j=i ; j<sz; j+=spnum ){
-      R_xlen_t k = j / spnum;
-      SET_VECTOR_ELT(work,   k, VECTOR_ELT(orgList, j));
-      if(origListNm != R_NilValue)
-	SET_STRING_ELT(workNm, k, STRING_ELT(origListNm, j));
-    }
-    if(origListNm != R_NilValue)
+    SEXP work, workNm = R_NilValue;
+    R_xlen_t chunk_sz = SPLITSIZEIX(sz, spnum, i);
+    R_xlen_t k = 0;
+    PROTECT(work = allocVector(VECSXP, chunk_sz));
+    if (origListNm != R_NilValue) {
+      PROTECT(workNm = allocVector(STRSXP, chunk_sz));
+      for (j = i; j < sz; j += spnum, k++) {
+        SET_VECTOR_ELT(work, k, VECTOR_ELT(orgList, j));
+        SET_STRING_ELT(workNm, k, STRING_ELT(origListNm, j));
+      }
       setAttrib(work, R_NamesSymbol, workNm);
+      UNPROTECT(1);
+    } else {
+      for (j = i; j < sz; j += spnum, k++) {
+        SET_VECTOR_ELT(work, k, VECTOR_ELT(orgList, j));
+      }
+    }
     if(origListClass != R_NilValue)
       setAttrib(work, R_ClassSymbol, origListClass);
     SET_VECTOR_ELT(outList, i, work);
-    REPROTECT(outList, outList_ix);
-    UNPROTECT(2);    
+    UNPROTECT(1);
   }
   UNPROTECT(3);
   return(outList);
