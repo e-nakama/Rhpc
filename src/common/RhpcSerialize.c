@@ -222,6 +222,17 @@ static SEXP CloseMemOutPStream_onlysize(R_outpstream_t stream)
 
 /** ---- **/
 
+static R_xlen_t Rhpc_get_serialize_size_internal(SEXP object)
+{
+    struct R_outpstream_st out;
+    struct membuf_st mbs;
+
+    InitMemOutPStream_onlysize(&out, &mbs, R_pstream_binary_format, 
+                               defaultSerializeVersion(), NULL, R_NilValue);
+    R_Serialize(object, &out);
+    return mbs.count;
+}
+
 SEXP Rhpc_serialize(SEXP object)
 {
     struct R_outpstream_st out;
@@ -242,49 +253,30 @@ SEXP Rhpc_serialize(SEXP object)
 
 SEXP Rhpc_serialize_onlysize(SEXP object)
 {
-    struct R_outpstream_st out;
-    R_pstream_format_t type;
-    int version;
-    struct membuf_st mbs;
     SEXP val;
-
-    version = defaultSerializeVersion();
-    type = R_pstream_binary_format;
-
-    InitMemOutPStream_onlysize(&out, &mbs, type, version, NULL, R_NilValue);
-    R_Serialize(object, &out);
-    val =  CloseMemOutPStream_onlysize(&out);
-    
+    R_xlen_t count = Rhpc_get_serialize_size_internal(object);
+    PROTECT(val = allocVector(REALSXP, 1));
+    REAL(val)[0] = (double)count;
+    UNPROTECT(1);
     return val;  
 }
 
 SEXP Rhpc_serialize_norealloc(SEXP object)
 {
     struct R_outpstream_st out;
-    R_pstream_format_t type;
-    int version;
+    R_pstream_format_t type = R_pstream_binary_format;
+    int version = defaultSerializeVersion();
     struct membuf_st mbs;
     SEXP val;
-    SEXP object_size=R_NilValue;
 
-    PROTECT(object_size=Rhpc_serialize_onlysize(object));
-
-    if(object_size == R_NilValue){
-      UNPROTECT(1);
-      return(R_UnboundValue);
-    }
-    
-    mbs.size = (R_xlen_t)REAL(object_size)[0];
+    mbs.size = Rhpc_get_serialize_size_internal(object);
     PROTECT(val = allocVector(RAWSXP, mbs.size));
     mbs.buf  = RAW(val);
     
-    version = defaultSerializeVersion();
-    type = R_pstream_binary_format;
-
     InitMemOutPStream_norealloc(&out, &mbs, type, version, NULL, R_NilValue);
     R_Serialize(object, &out);
 
-    UNPROTECT(2);
+    UNPROTECT(1);
     return val;
 }
 
