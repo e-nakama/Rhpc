@@ -35,10 +35,12 @@ static const R_CallMethodDef CallEntries[] = {
 // Automatically called when R loads the package.
 void attribute_visible R_init_Rhpc(DllInfo *dll)
 {
+#ifdef RHPC_ALTVEC
     // ALTREP class registration
     // Pass DllInfo pointer to Rhpc_init_serialize_altrep function.
     // This associates the ALTREP class with the Rhpc package shared library.
     Rhpc_init_serialize_altrep(dll);
+#endif
 
     // Register C functions that can be called from R
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);

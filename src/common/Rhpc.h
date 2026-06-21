@@ -134,10 +134,12 @@ static inline SEXP _CHK(SEXP _X)
   return ret;
 }
 
+#ifdef RHPC_ALTVEC
 /* ALTREP Class definition and initialization flag */
 extern R_altrep_class_t Rhpc_SerializedRaw_class;
 extern int Rhpc_altrep_initialized;
 void Rhpc_init_serialize_altrep(DllInfo *dll);
+#endif
 
 SEXP Rhpc_serialize(SEXP);
 SEXP Rhpc_serialize_onlysize(SEXP);

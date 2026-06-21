@@ -37,6 +37,7 @@ typedef struct membuf_st {
     int overflow;
 } *membuf_t;
 
+#ifdef RHPC_ALTVEC
 /* ALTREP Class definition */
 R_altrep_class_t Rhpc_SerializedRaw_class;
 int Rhpc_altrep_initialized = 0;
@@ -83,6 +84,7 @@ static void init_altrep_lazy(void) {
         Rhpc_init_serialize_altrep(NULL);
     }
 }
+#endif
 
 /* Based on R 4.x serialization defaults */
 static int defaultSerializeVersion(void)
@@ -288,6 +290,7 @@ static R_xlen_t Rhpc_get_serialize_size_internal(SEXP object)
 
 SEXP Rhpc_serialize(SEXP object)
 {
+#ifdef RHPC_ALTVEC
     struct R_outpstream_st out;
     membuf_t mb;
     SEXP val;
@@ -311,6 +314,22 @@ SEXP Rhpc_serialize(SEXP object)
     val = R_new_altrep(Rhpc_SerializedRaw_class, mbeptr, R_NilValue);
     UNPROTECT(1); /* mbeptr */
     return val;
+#else
+    struct R_outpstream_st out;
+    R_pstream_format_t type;
+    int version;
+    struct membuf_st mbs;
+    SEXP val;
+
+    version = defaultSerializeVersion();
+    type = R_pstream_binary_format;
+
+    InitMemOutPStream(&out, &mbs, type, version, NULL, R_NilValue);
+    R_Serialize(object, &out);
+    val =  CloseMemOutPStream(&out);
+    
+    return val;
+#endif
 }
 
 SEXP Rhpc_serialize_onlysize(SEXP object)
