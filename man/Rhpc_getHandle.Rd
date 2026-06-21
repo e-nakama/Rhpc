@@ -23,7 +23,7 @@ Rhpc_getHandle(procs = NA)
   \code{\link{Rhpc_initialize}}, \code{\link{Rhpc_numberOfWorker}}, \code{\link{Rhpc_finalize}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)  # Create 5 worker processes dynamically

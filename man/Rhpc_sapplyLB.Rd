@@ -29,7 +29,7 @@ Rhpc_sapplyLB(cl = NULL, X, FUN, ...,
   \code{\link{Rhpc_sapply}}, \code{\link{Rhpc_lapplyLB}}, \code{\link{Rhpc_apply}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)

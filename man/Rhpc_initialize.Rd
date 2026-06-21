@@ -16,7 +16,7 @@ Rhpc_initialize()
   \code{\link{Rhpc_finalize}}, \code{\link{Rhpc_getHandle}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 # Now ready to use Rhpc functions

@@ -25,7 +25,7 @@ Rhpc_setupRNG(cl, iseed = NULL)
   \code{\link{Rhpc_getHandle}}, \code{\link{Rhpc_lapply}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)

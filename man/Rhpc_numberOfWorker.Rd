@@ -15,7 +15,7 @@ Rhpc_numberOfWorker(cl)
   \code{\link{Rhpc_getHandle}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)

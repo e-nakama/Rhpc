@@ -24,7 +24,7 @@ Rhpc_worker_noback(cl, FUN, ...,
   \code{\link{Rhpc_worker_call}}, \code{\link{Rhpc_Export}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)

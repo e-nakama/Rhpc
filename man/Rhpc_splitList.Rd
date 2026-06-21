@@ -22,7 +22,7 @@ Rhpc_splitList(var, num)
   \code{\link{Rhpc_lapply}}, \code{\link{Rhpc_numberOfWorker}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)

@@ -43,7 +43,7 @@ serialized <- Rhpc_serialize(data_to_serialize)
 deserialized <- Rhpc_unserialize(serialized)
 stopifnot(identical(data_to_serialize, deserialized))
 
-\dontrun{
+\donttest{
 ## Need MPI Cluster
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)
