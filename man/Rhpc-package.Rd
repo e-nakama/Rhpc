@@ -79,7 +79,9 @@ Rhpc_setupRNG(cl, iseed)
   }
   \item{usequote}{user can choose usequpte=FALSE for performance improvement}
   \item{variableNames}{string vector} 
-  \item{iseed}{random number seed}
+  \item{iseed}{random number seed. The master process's .Random.seed is
+    not modified permanently; the original state is saved to \code{options("Rhpc.oldseed")} 
+    but is not automatically restored. Seeds are generated internally and distributed to workers only.}
   \item{expr}{expression to evaluate}
   \item{pos}{default is current environment position}
   \item{envir}{where to look for the object}
@@ -109,35 +111,44 @@ Rhpc_setupRNG(cl, iseed)
 }
 \keyword{utilities}
 \examples{
-\dontrun{
-# use Rhpc command
-Rhpc_initialize()
+# Check that Rhpc package is available
+stopifnot(require(Rhpc))
 
-# If you start the process dynamically on Windows, the dos window of
-# mpiexec will be created, but you should not close this window.
-cl <- Rhpc_getHandle(5) # ommit number of worker if use Rhpc batch
+# Demonstrate serialization functions (executable without MPI)
+data_to_serialize <- list(a=1:5, b=c("x", "y", "z"))
+serialized <- Rhpc_serialize(data_to_serialize)
+deserialized <- Rhpc_unserialize(serialized)
+identical(data_to_serialize, deserialized)
 
-# Rhpc set to options
-opstr=list("Rhpc.mpi.rank","Rhpc.mpi.procs","Rhpc.mpi.c.comm","Rhpc.mpi.f.comm")
-do.call("options",opstr)
-Rhpc_worker_call(cl, "do.call","options", opstr)
-# warning! : pointer not export, worker Rhpc.mpi.c.comm is (nil) on master.
-
-Rhpc_worker_call(cl, Sys.getpid)
-Rhpc_lapply(cl,1:10000,sqrt)
-Rhpc_lapplyLB(cl,1:10000,sqrt)
-Rhpc_sapply(cl,1:10000,sqrt)
-Rhpc_sapplyLB(cl,1:10000,sqrt)
-
-df<-data.frame(a=1:4,b=5:8)
-Rhpc_apply(cl,df,1,max)
-Rhpc_apply(cl,df,2,max)
-
-Rhpc_finalize()
-#
-# command line example
-#
-# mpirun -n 4 Rhpc CMD BATCH --no-save `script file for exemplified above'
-#
+\donttest{
+# Full MPI example (requires MPI to be initialized)
+# This example shows typical workflow but needs MPI environment
+# 
+# Rhpc_initialize()
+# 
+# # If you start the process dynamically on Windows, the dos window of
+# # mpiexec will be created, but you should not close this window.
+# cl <- Rhpc_getHandle(5) # omit number of worker if use Rhpc batch
+# 
+# # Rhpc set to options
+# opstr=list("Rhpc.mpi.rank","Rhpc.mpi.procs","Rhpc.mpi.c.comm","Rhpc.mpi.f.comm")
+# do.call("options",opstr)
+# Rhpc_worker_call(cl, "do.call","options", opstr)
+# # warning! : pointer not export, worker Rhpc.mpi.c.comm is (nil) on master.
+# 
+# Rhpc_worker_call(cl, Sys.getpid)
+# Rhpc_lapply(cl,1:10000,sqrt)
+# Rhpc_lapplyLB(cl,1:10000,sqrt)
+# Rhpc_sapply(cl,1:10000,sqrt)
+# Rhpc_sapplyLB(cl,1:10000,sqrt)
+# 
+# df<-data.frame(a=1:4,b=5:8)
+# Rhpc_apply(cl,df,1,max)
+# Rhpc_apply(cl,df,2,max)
+# 
+# Rhpc_finalize()
+# 
+# # Command line example:
+# # mpirun -n 4 Rhpc CMD BATCH --no-save <script file>
 }
 }
