@@ -9,7 +9,7 @@
 
 % --- 追加: R の図で日本語フォントを使用するための設定 ---
 <<echo=FALSE, results=hide>>=
-grDevices::pdf.options(family="Japan1")
+old_pdf_options <- grDevices::pdf.options(family="Japan1")
 @
 
 \title{Rhpcパッケージ入門}
@@ -34,7 +34,7 @@ grDevices::pdf.options(family="Japan1")
 \subsection{Linux / Unix}
 MPI ライブラリ（OpenMPI、MPICH2 など）が必要です。パッケージをビルドしてインストールします。
 \begin{verbatim}
-R CMD INSTALL Rhpc_0.26-1.tar.gz
+R CMD INSTALL Rhpc_0.26.1.tar.gz
 \end{verbatim}
 
 Fujitsu MPI など他の MPI 実装を使う場合は、\texttt{--configure-args} でコンパイル・リンクフラグを指定します。
@@ -97,7 +97,7 @@ Windows では \texttt{Rhpc\_initialize()} が次の処理を内部で行いま�
 
 <<echo=TRUE, eval=FALSE>>=
 library(Rhpc)
-options(Rhpc.mpiexec = "mpiexec -n 1")
+oldoptions <- options(Rhpc.mpiexec = "mpiexec -n 1")
 Rhpc_initialize()
 cl <- Rhpc_getHandle(3)
 
@@ -109,6 +109,7 @@ worker_env_info <- Rhpc_worker_call(cl, function() {
 })
 print(worker_env_info)
 Rhpc_finalize()
+options(oldoptions)
 @
 
 \section{集団通信と個別通信の選択}
@@ -154,7 +155,8 @@ draw_comm_decision_flow <- function() {
         }
     }
 
-    par(mar = c(1, 1, 3, 1))
+    oldpar <- par(mar = c(1, 1, 3, 1))
+    on.exit(par(oldpar))
     plot(c(0, 10), c(0, 14), type = "n", axes = FALSE, xlab = "", ylab = "",
          main = "Rhpc: 集団通信 vs 個別通信の選択")
 
@@ -231,7 +233,8 @@ draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
     y <- rev(seq_len(nl))
     ym <- y[1]
 
-    par(mar = c(3, 2, 3, 2))
+    oldpar <- par(mar = c(3, 2, 3, 2))
+    on.exit(par(oldpar))
     plot(xlim, c(0.3, nl + 0.8), type = "n", xaxt = "n", yaxt = "n",
          xlab = "time ->", ylab = "", main = title)
     for (i in seq_along(lanes)) {
@@ -467,7 +470,8 @@ draw_comm_comparison <- function() {
     )
     colnames(mat) <- funcs
 
-    par(mar = c(6, 8, 3, 2))
+    oldpar <- par(mar = c(6, 8, 3, 2))
+    on.exit(par(oldpar))
     barplot(mat, beside = TRUE, col = c("#27AE60", "#8E44AD", "#E67E22", "#C0392B"),
             border = NA, las = 2, cex.names = 0.85,
             main = "関数別: 使用する MPI 通信方式",
@@ -619,5 +623,9 @@ Rhpc_finalize()
     \item \textbf{簡便性}: \texttt{lapply} や \texttt{apply} と同じ R スタイルの構文で並列化できる。
     \item \textbf{Windows 対応}: GUI 環境からでも \texttt{fakemaster} により MPI を利用可能。
 \end{itemize}
+
+<<echo=FALSE, results=hide>>=
+do.call(grDevices::pdf.options, old_pdf_options)
+@
 
 \end{document}

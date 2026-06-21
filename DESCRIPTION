@@ -15,6 +15,7 @@ Imports: parallel
 SystemRequirements: R built as a shared or static library, 'MPI'
         library.
 Description: Provides apply-style functions using the Message Passing Interface ('MPI') to improve the High-Performance Computing ('HPC') environment in R. Supports long vectors and efficient handling of large datasets.
+  Reference: <https://www.mpi-forum.org/>
 License: AGPL-3
 URL: https://github.com/e-nakama/Rhpc
 ByteCompile: true
