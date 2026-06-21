@@ -26,7 +26,7 @@ Rhpc_getHandle(procs = NA)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)  # Create 5 worker processes dynamically
+cl <- Rhpc_getHandle(3)  # Create 5 worker processes dynamically
 Rhpc_finalize()
 }
 }

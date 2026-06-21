@@ -3,7 +3,9 @@
 \title{Parallel apply using MPI}
 \description{MPI-based version of \code{apply} for arrays and matrices.}
 \usage{
-Rhpc_apply(cl = NULL, X, MARGIN, FUN, ..., usequote = TRUE)
+Rhpc_apply(cl = NULL, X, MARGIN, FUN, ...,
+           usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                             getOption("Rhpc.usequote"), TRUE))
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}
@@ -31,7 +33,7 @@ Rhpc_apply(cl = NULL, X, MARGIN, FUN, ..., usequote = TRUE)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 df <- data.frame(a = 1:4, b = 5:8)
 result <- Rhpc_apply(cl, df, 1, max)  # Max of each row
 Rhpc_finalize()

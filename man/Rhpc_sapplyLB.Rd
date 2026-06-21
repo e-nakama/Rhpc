@@ -3,7 +3,11 @@
 \title{Parallel sapply with load balancing}
 \description{MPI-based version of \code{sapply} with load balancing for better performance.}
 \usage{
-Rhpc_sapplyLB(cl = NULL, X, FUN, ..., usequote = TRUE, simplify = TRUE, USE.NAMES = TRUE)
+Rhpc_sapplyLB(cl = NULL, X, FUN, ...,
+              usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                                getOption("Rhpc.usequote"), TRUE),
+              simplify = TRUE,
+              USE.NAMES = TRUE)
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}
@@ -28,7 +32,7 @@ Rhpc_sapplyLB(cl = NULL, X, FUN, ..., usequote = TRUE, simplify = TRUE, USE.NAME
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 result <- Rhpc_sapplyLB(cl, 1:100, sqrt)
 Rhpc_finalize()
 }

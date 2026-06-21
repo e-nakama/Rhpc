@@ -257,6 +257,7 @@ static SEXP CloseMemOutPStream(R_outpstream_t stream)
     return val;
 }
 
+#if 0
 static SEXP CloseMemOutPStream_onlysize(R_outpstream_t stream)
 {
     SEXP val;
@@ -267,6 +268,7 @@ static SEXP CloseMemOutPStream_onlysize(R_outpstream_t stream)
     UNPROTECT(1);
     return val;
 }
+#endif
 
 /** ---- **/
 

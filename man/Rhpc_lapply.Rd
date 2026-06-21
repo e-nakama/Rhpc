@@ -3,7 +3,9 @@
 \title{Parallel lapply using MPI}
 \description{MPI-based version of \code{lapply} that distributes work across worker processes sequentially.}
 \usage{
-Rhpc_lapply(cl, X, FUN, ..., usequote = TRUE)
+Rhpc_lapply(cl, X, FUN, ...,
+            usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                              getOption("Rhpc.usequote"), TRUE))
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}

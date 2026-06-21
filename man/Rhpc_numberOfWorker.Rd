@@ -18,7 +18,7 @@ Rhpc_numberOfWorker(cl)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 n_workers <- Rhpc_numberOfWorker(cl)
 print(n_workers)  # Should print 5
 Rhpc_finalize()

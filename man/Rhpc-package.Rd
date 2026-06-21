@@ -1,5 +1,6 @@
 \name{Rhpc-package}
 \alias{Rhpc-package}
+\alias{Rhpc_gethandle}
 \alias{Rhpc_mpi_initialize}
 \alias{Rhpc_mpi_finalize}
 \alias{Rhpc_mpi_lapply_LB}

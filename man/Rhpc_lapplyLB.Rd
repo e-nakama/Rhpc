@@ -3,7 +3,9 @@
 \title{Parallel lapply with load balancing}
 \description{MPI-based version of \code{lapply} with load balancing for better performance on heterogeneous systems.}
 \usage{
-Rhpc_lapplyLB(cl, X, FUN, ..., usequote = TRUE)
+Rhpc_lapplyLB(cl, X, FUN, ...,
+              usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                                getOption("Rhpc.usequote"), TRUE))
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}
@@ -29,7 +31,7 @@ Rhpc_lapplyLB(cl, X, FUN, ..., usequote = TRUE)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 result <- Rhpc_lapplyLB(cl, 1:1000, sqrt)
 Rhpc_finalize()
 }

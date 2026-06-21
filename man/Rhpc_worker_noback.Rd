@@ -3,7 +3,9 @@
 \title{Call a function on worker processes without collecting results}
 \description{Executes a function on all worker processes without waiting for or collecting results.}
 \usage{
-Rhpc_worker_noback(cl, FUN, ..., usequote = TRUE)
+Rhpc_worker_noback(cl, FUN, ...,
+                   usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                                     getOption("Rhpc.usequote"), TRUE))
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}
@@ -25,7 +27,7 @@ Rhpc_worker_noback(cl, FUN, ..., usequote = TRUE)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 Rhpc_worker_noback(cl, "options", list("digits", 15))
 Rhpc_finalize()
 }

@@ -3,7 +3,9 @@
 \title{Call a function on worker processes}
 \description{Executes a function on all worker processes and collects the results.}
 \usage{
-Rhpc_worker_call(cl, FUN, ..., usequote = TRUE)
+Rhpc_worker_call(cl, FUN, ...,
+                 usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                                   getOption("Rhpc.usequote"), TRUE))
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}

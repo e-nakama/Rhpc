@@ -1,5 +1,5 @@
-# Load shared library and enable routine registration
-useDynLib(Rhpc, .registration = TRUE)
+# Load shared library
+useDynLib(Rhpc)
 
 # Explicitly export functions to be made public to users
 # Example: export(RhpcApply, RhpcLapply) 

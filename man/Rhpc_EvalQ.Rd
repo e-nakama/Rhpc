@@ -3,7 +3,10 @@
 \title{Evaluate an expression on worker processes}
 \description{Evaluates an R expression on all worker processes.}
 \usage{
-Rhpc_EvalQ(cl, expr, usequote = TRUE, envir = .GlobalEnv)
+Rhpc_EvalQ(cl, expr,
+           usequote = ifelse(is.logical(getOption("Rhpc.usequote")),
+                             getOption("Rhpc.usequote"), TRUE),
+           envir = .GlobalEnv)
 }
 \arguments{
   \item{cl}{external pointer to MPI communicator}
@@ -25,7 +28,7 @@ Rhpc_EvalQ(cl, expr, usequote = TRUE, envir = .GlobalEnv)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 result <- Rhpc_EvalQ(cl, Sys.getenv("HOSTNAME"))
 Rhpc_finalize()
 }

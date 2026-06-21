@@ -28,7 +28,7 @@ Rhpc_setupRNG(cl, iseed = NULL)
 \dontrun{
 ## Need MPI Cluster
 Rhpc_initialize()
-cl <- Rhpc_getHandle(３)
+cl <- Rhpc_getHandle(3)
 Rhpc_setupRNG(cl, iseed = 123)  # Set seed for reproducibility
 # Now workers have independent random streams
 Rhpc_finalize()
