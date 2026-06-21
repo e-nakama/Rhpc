@@ -18,6 +18,13 @@
 \alias{Rhpc_enquote}
 \alias{Rhpc_splitList}
 \alias{Rhpc_serialize}
+\alias{Rhpc_gethandle}
+\alias{Rhpc_mpi_initialize}
+\alias{Rhpc_mpi_finalize}
+\alias{Rhpc_mpi_lapply_LB}
+\alias{Rhpc_mpi_lapply_seq}
+\alias{Rhpc_mpi_worker_call}
+\alias{Rhpc_number_of_worker}
 \alias{Rhpc_serialize_onlysize}
 \alias{Rhpc_serialize_norealloc}
 \alias{Rhpc_unserialize}
