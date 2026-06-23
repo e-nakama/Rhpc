@@ -17,10 +17,9 @@ Rhpc_initialize()
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
+#Rhpc_initialize()
 # Now ready to use Rhpc functions
-Rhpc_finalize()
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

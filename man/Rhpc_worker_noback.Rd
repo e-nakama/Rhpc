@@ -25,11 +25,10 @@ Rhpc_worker_noback(cl, FUN, ...,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-Rhpc_worker_noback(cl, "options", list("digits", 15))
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#Rhpc_worker_noback(cl, "options", list("digits", 15))
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

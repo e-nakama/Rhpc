@@ -28,11 +28,10 @@ Rhpc_lapply(cl, X, FUN, ...,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(5)
-result <- Rhpc_lapply(cl, 1:1000, sqrt)
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(5)
+#result <- Rhpc_lapply(cl, 1:1000, sqrt)
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

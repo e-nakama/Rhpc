@@ -26,12 +26,11 @@ Rhpc_setupRNG(cl, iseed = NULL)
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-Rhpc_setupRNG(cl, iseed = 123)  # Set seed for reproducibility
-# Now workers have independent random streams
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#Rhpc_setupRNG(cl, iseed = 123)  # Set seed for reproducibility
+## Now workers have independent random streams
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

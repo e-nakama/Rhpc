@@ -16,12 +16,11 @@ Rhpc_numberOfWorker(cl)
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-n_workers <- Rhpc_numberOfWorker(cl)
-print(n_workers)  # Should print 5
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#n_workers <- Rhpc_numberOfWorker(cl)
+#print(n_workers)  # Should print 5
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

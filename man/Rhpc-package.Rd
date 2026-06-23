@@ -44,10 +44,9 @@ deserialized <- Rhpc_unserialize(serialized)
 stopifnot(identical(data_to_serialize, deserialized))
 
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-result <- Rhpc_lapply(cl, 1:100, sqrt)
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#result <- Rhpc_lapply(cl, 1:100, sqrt)
+#Rhpc_finalize()
 }
 }

@@ -24,10 +24,9 @@ Rhpc_getHandle(procs = NA)
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)  # Create 5 worker processes dynamically
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)  # Create 5 worker processes dynamically
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

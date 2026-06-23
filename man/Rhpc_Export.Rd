@@ -30,13 +30,12 @@ Rhpc_Export(cl, variableNames,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-my_data <- 1:100
-Rhpc_Export(cl, "my_data")
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#my_data <- 1:100
+#Rhpc_Export(cl, "my_data")
 # Now workers can use my_data
-Rhpc_finalize()
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

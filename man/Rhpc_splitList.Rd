@@ -23,13 +23,12 @@ Rhpc_splitList(var, num)
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-data <- 1:100
-chunks <- Rhpc_splitList(data, Rhpc_numberOfWorker(cl))
-# Each chunk can now be manually processed
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#data <- 1:100
+#chunks <- Rhpc_splitList(data, Rhpc_numberOfWorker(cl))
+## Each chunk can now be manually processed
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

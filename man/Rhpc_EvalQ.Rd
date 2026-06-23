@@ -26,11 +26,10 @@ Rhpc_EvalQ(cl, expr,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-result <- Rhpc_EvalQ(cl, Sys.getenv("HOSTNAME"))
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#result <- Rhpc_EvalQ(cl, Sys.getenv("HOSTNAME"))
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

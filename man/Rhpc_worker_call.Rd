@@ -28,12 +28,11 @@ Rhpc_worker_call(cl, FUN, ...,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(5)
-result <- Rhpc_worker_call(cl, Sys.getpid)
-print(result)
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(5)
+#result <- Rhpc_worker_call(cl, Sys.getpid)
+#print(result)
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}

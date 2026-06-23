@@ -30,11 +30,10 @@ Rhpc_sapplyLB(cl = NULL, X, FUN, ...,
 }
 \examples{
 \donttest{
-## Need MPI Cluster
-Rhpc_initialize()
-cl <- Rhpc_getHandle(3)
-result <- Rhpc_sapplyLB(cl, 1:100, sqrt)
-Rhpc_finalize()
+#Rhpc_initialize()
+#cl <- Rhpc_getHandle(3)
+#result <- Rhpc_sapplyLB(cl, 1:100, sqrt)
+#Rhpc_finalize()
 }
 }
 \keyword{utilities}
