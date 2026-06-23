@@ -28,7 +28,6 @@ Example (checking MS-MPI environment variables):
 ```cmd
 C:\Users\boofoo>set MSMPI
 MSMPI_INC=C:\Program Files (x86)\Microsoft SDKs\MPI\Include\
-MSMPI_LIB32=C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x86\
 MSMPI_LIB64=C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x64\
 ```
 
@@ -63,8 +62,8 @@ q("no")
 
 First, install MS-MPI from the Microsoft Download Center.
 
-#### Use in RGui or RStudio (recommended)
-On Windows, Rhpc uses the `fakemaster` program so that MPI can be used from GUI environments like RGui. `Rhpc_initialize()` runs `mpiexec` in the background and transfers the MPI environment to the current R process.
+#### Use in RGui
+On Windows, Rhpc uses the `fakemaster` program so that MPI can be used from GUI environments like RGui. `Rhpc_getHandle()` runs `mpiexec` in the background and transfers the MPI environment to the current R process.
 
 **Note:** Do not close the `mpiexec` or `fakemaster` command prompt windows that open during execution.
 
@@ -81,23 +80,3 @@ q("no")
 ```
 * Note: Some versions of MS-MPI may have limitations for multi-node launch using `MPI_Comm_spawn` (confirmed to work on single node only).
 
-#### Traditional usage
-Use the `.cmd` shell provided in the package directory.
-
-**Launch RGui(x64):**
-Run `%USERPROFILE%\Documents\R\win-binary\4.6\Rhpc\RhpcWin64.cmd`.
-
-After launching:
-```r
-library(Rhpc)
-Rhpc_initialize()
-cl <- Rhpc_getHandle()
-Rhpc_worker_call(cl, Sys.getpid)
-Rhpc_finalize()
-q("no")
-```
-
-**Batch execution (x64):**
-```cmd
-C:> %USERPROFILE%\Documents\R\win-binary\4.6\Rhpc\Rhpc64.cmd BATCH test.R
-```
