@@ -108,6 +108,9 @@ static void Rhpc_worker_init(void)
   R_Slave              = TRUE;
   R_ReplDLLinit();
   initialize=1;
+#ifdef RHPC_ALTVEC
+  Rhpc_init_serialize_altrep(NULL);
+#endif
 
 #if defined(__ELF__)
   if ( NULL != (dlh=dlopen(NULL, RTLD_NOW|RTLD_GLOBAL))){

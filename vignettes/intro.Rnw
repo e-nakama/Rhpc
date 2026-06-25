@@ -133,7 +133,8 @@ draw_rhpc_sequence <- function(nworkers=3){
     y <- rev(seq_len(nl))
     y_master <- y[1]
 
-    par(mar=c(3,2,3,2))
+    oldpar <- par(mar=c(3,2,3,2))
+    on.exit(par(oldpar))
     plot(c(0,10), c(0.5, nl+0.5), type="n", xaxt="n", yaxt="n", xlab="Time", ylab="",
              main="Collective vs Point-to-Point Communication (schematic)")
     # draw lifelines

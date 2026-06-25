@@ -127,7 +127,7 @@ void Rhpc_worker_lapply_seq(int *cmd)
     PROTECT(ret);
     SET_VECTOR_ELT(resL, works, ret);
     REPROTECT(resL, resL_ix);
-    UNPROTECT(7);
+    UNPROTECT(6);
   }
  
   PROTECT(l_out = R_NilValue);

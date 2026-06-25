@@ -2,7 +2,7 @@ SUBDIRS = common worker
 PKG_CFLAGS=@MPI_CFLAGS@
 PKG_LIBS=@MPI_LDFLAGS@
 
-SOURCES_C = RhpcMPI.c common/RhpcSerialize.c common/RhpcMS.c RhpcMPIWorkerCall.c RhpcMPIlapplyLB.c RhpcMPIlapplyseq.c registerDynamicSymbol.c
+SOURCES_C = Rhpc_init.c RhpcMPI.c common/RhpcSerialize.c common/RhpcMS.c RhpcMPIWorkerCall.c RhpcMPIlapplyLB.c RhpcMPIlapplyseq.c
 OBJECTS = $(SOURCES_C:.c=.o)
 MKCONF = $(R_HOME)/etc${R_ARCH}/Makeconf
 

@@ -10,7 +10,7 @@ PKG_CFLAGS= -I$(XMSMPI_INC) -DMSMPI_NO_DEPRECATE_20 -DWIN32
 PKG_LIBS= $(MPILIBA) -ladvapi32 
 
 SUBDIRS = common worker
-SOURCES_C = RhpcMPI.c RhpcMPIlapplyLB.c RhpcMPIlapplyseq.c RhpcMPIWorkerCall.c registerDynamicSymbol.c
+SOURCES_C = Rhpc_init.c RhpcMPI.c RhpcMPIWorkerCall.c RhpcMPIlapplyLB.c RhpcMPIlapplyseq.c
 MKCONF = $(R_HOME)/etc$(R_ARCH)/Makeconf
 COMMON_OBJECTS = common/RhpcSerialize.o common/RhpcMS.o
 OBJECTS = $(SOURCES_C:.c=.o) $(COMMON_OBJECTS)

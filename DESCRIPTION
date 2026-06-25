@@ -1,6 +1,6 @@
 Package: Rhpc
-Version: 0.26.1
-Date: 2026-06-07
+Version: 0.26.2
+Date: 2026-06-23
 Title: Apply-Style Dispatch for High-Performance Computing
 Authors@R: c(person(given = "Ei-ji",
                     family = "Nakama",
@@ -14,8 +14,15 @@ Depends: R (>= 4.6.0)
 Imports: parallel
 SystemRequirements: R built as a shared or static library, 'MPI'
         library.
-Description: Provides apply-style functions using the Message Passing Interface ('MPI') to improve the High-Performance Computing ('HPC') environment in R. Supports long vectors and efficient handling of large datasets.
+Description: Provides apply-style functions using the Message Passing Interface ('MPI')
+  to improve the High-Performance Computing ('HPC') environment in R.
+  The package supports long vectors and efficient handling of large datasets for
+  MPI-based parallel computations.
+Encoding: UTF-8
 License: AGPL-3
 URL: https://github.com/e-nakama/Rhpc
+BugReports: https://github.com/e-nakama/Rhpc/issues
+Author: Ei-ji Nakama [aut, cre], Junji NAKANO [aut]
+Maintainer: Ei-ji Nakama <nakama@ki.rim.or.jp>
 ByteCompile: true
 NeedsCompilation: yes

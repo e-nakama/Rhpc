@@ -38,15 +38,6 @@ Rhpc_worker_call <- function(cl,FUN, ...,
     .Call("Rhpc_mpi_worker_call", cl, args, as.integer(1), usequote, PACKAGE="Rhpc")
 }
 
-
-Rhpc_worker_shy <- function(cl,FUN, ...,
-                            usequote=ifelse(is.logical(getOption("Rhpc.usequote")),getOption("Rhpc.usequote"),TRUE))
-{
-    arg  <- list(...)
-    args <- list(FUN,arg)
-    invisible(.Call("Rhpc_mpi_worker_call", cl, args, as.integer(0), usequote, PACKAGE="Rhpc"))
-}
-
 Rhpc_worker_noback <- function(cl,FUN, ...,
                                usequote=ifelse(is.logical(getOption("Rhpc.usequote")),getOption("Rhpc.usequote"),TRUE))
 {
@@ -54,7 +45,6 @@ Rhpc_worker_noback <- function(cl,FUN, ...,
     args <- list(FUN,arg)
     invisible(.Call("Rhpc_mpi_worker_call", cl, args, as.integer(0), usequote, PACKAGE="Rhpc"))
 }
-
 
 Rhpc_lapply <- function(cl, X, FUN, ...,
                         usequote=ifelse(is.logical(getOption("Rhpc.usequote")),getOption("Rhpc.usequote"),TRUE))
