@@ -53,4 +53,4 @@ fakemaster$(TARGET_ARCH).o: fakemaster.c
 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
 
 clean:
-	@-$(RM) -f RhpcWorker RhpcWorker32.exe RhpcWorker64.exe RhpcWin32.cmd RhpcWin64.cmd RhpcSpawnWin32.cmd RhpcSpawnWin64.cmd $(OBJECTS) fakemaster*.o fakemaster*.exe
+	@-$(RM) -f RhpcWorker RhpcWorker64.exe RhpcWin64.cmd RhpcSpawnWin64.cmd $(OBJECTS) fakemaster*.o fakemaster*.exe
