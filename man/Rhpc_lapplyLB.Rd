@@ -27,12 +27,4 @@ Rhpc_lapplyLB(cl, X, FUN, ...,
 \seealso{
   \code{\link{Rhpc_lapply}}, \code{\link{Rhpc_sapplyLB}}, \code{\link{Rhpc_apply}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#result <- Rhpc_lapplyLB(cl, 1:1000, sqrt)
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

@@ -28,12 +28,4 @@ Rhpc_sapplyLB(cl = NULL, X, FUN, ...,
 \seealso{
   \code{\link{Rhpc_sapply}}, \code{\link{Rhpc_lapplyLB}}, \code{\link{Rhpc_apply}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#result <- Rhpc_sapplyLB(cl, 1:100, sqrt)
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

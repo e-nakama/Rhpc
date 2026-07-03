@@ -2,6 +2,7 @@
 rm -rf autom4te.cache
 rm -f config.*
 rm -f configure.lineno
+rm -f MD5
 rm -f *~
 rm -f R/*~
 rm -f exec/*

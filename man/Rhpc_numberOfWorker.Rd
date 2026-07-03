@@ -14,13 +14,4 @@ Rhpc_numberOfWorker(cl)
 \seealso{
   \code{\link{Rhpc_getHandle}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#n_workers <- Rhpc_numberOfWorker(cl)
-#print(n_workers)  # Should print 5
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

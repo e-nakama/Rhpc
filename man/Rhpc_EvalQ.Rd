@@ -24,12 +24,4 @@ Rhpc_EvalQ(cl, expr,
 \seealso{
   \code{\link{Rhpc_worker_call}}, \code{\link{Rhpc_Export}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#result <- Rhpc_EvalQ(cl, Sys.getenv("HOSTNAME"))
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

@@ -23,12 +23,4 @@ Rhpc_worker_noback(cl, FUN, ...,
 \seealso{
   \code{\link{Rhpc_worker_call}}, \code{\link{Rhpc_Export}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#Rhpc_worker_noback(cl, "options", list("digits", 15))
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

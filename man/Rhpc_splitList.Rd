@@ -21,14 +21,4 @@ Rhpc_splitList(var, num)
 \seealso{
   \code{\link{Rhpc_lapply}}, \code{\link{Rhpc_numberOfWorker}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#data <- 1:100
-#chunks <- Rhpc_splitList(data, Rhpc_numberOfWorker(cl))
-## Each chunk can now be manually processed
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

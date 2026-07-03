@@ -26,13 +26,4 @@ Rhpc_worker_call(cl, FUN, ...,
 \seealso{
   \code{\link{Rhpc_worker_noback}}, \code{\link{Rhpc_lapply}}, \code{\link{Rhpc_EvalQ}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(5)
-#result <- Rhpc_worker_call(cl, Sys.getpid)
-#print(result)
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

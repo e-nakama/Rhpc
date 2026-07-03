@@ -1,88 +1,99 @@
-%\VignetteIndexEntry{Introduction to Rhpc (English)}
+%\VignetteIndexEntry{Introduction to Rhpc package}
 %\VignetteEngine{utils::Sweave}
 %\VignetteEncoding{UTF-8}
 \documentclass{article}
 \usepackage{Sweave}
 \begin{document}
 
-\title{Introduction to the Rhpc Package (English)}
+\title{Introduction to the Rhpc Package}
 \author{Ei-ji Nakama}
 \maketitle
 
 \section{Overview}
-The \texttt{Rhpc} package provides a high-performance computing (HPC) interface for R that leverages the Message Passing Interface (MPI) to execute parallel computations efficiently. Unlike standard parallel libraries that often rely on sockets or forking, \texttt{Rhpc} offers a direct, low-latency interface to MPI, making it suitable for both small multicore systems and larger distributed HPC clusters.
+The \texttt{Rhpc} package provides an interface for achieving High-Performance Computing (HPC) in R using the Message Passing Interface (MPI).
+Unlike standard parallel processing libraries that rely on sockets or fork, it provides direct and low-latency access to MPI, making it scalable from multi-core PCs to large-scale computational clusters.
 
-\subsection{Key Specifications}
+\subsection{Key Features}
 \begin{itemize}
-    \item \textbf{MPI-Specific API}: All functions are prefixed with \texttt{Rhpc\_} to avoid namespace collisions and clearly indicate MPI-backed operations (e.g., \texttt{Rhpc\_lapply}, \texttt{Rhpc\_worker\_call}).
-    \item \textbf{Dynamic Worker Management}: Supports both static allocation (via \texttt{mpirun}) and dynamic process spawning during runtime.
-    \item \textbf{Hybrid Communication}: Utilizes Collective communication for instruction broadcasting and Point-to-Point communication for result gathering to maximize throughput.
-    \item \textbf{Transparent Windows Support}: Includes a unique \texttt{fakemaster} mechanism to allow MPI usage within GUI environments like RStudio without complex command-line invocation.
+    \item \textbf{MPI-Specific API}: All functions are prefixed with \texttt{Rhpc\_} to avoid namespace collisions and explicitly indicate the MPI backend (e.g., \texttt{Rhpc\_lapply}, \texttt{Rhpc\_worker\_call}).
+    \item \textbf{Dynamic Worker Management}: Supports both static launch via \texttt{mpirun} and dynamic generation during execution via \texttt{MPI\_Comm\_spawn}.
+    \item \textbf{Hybrid Communication}: Maximizes throughput by using Collective communication for instruction distribution and Point-to-Point communication for result collection.
+    \item \textbf{Windows Support}: The \texttt{fakemaster} mechanism allows using MPI even from GUI environments like RGui or RStudio without complex command-line launches.
+    \item \textbf{Long Vector Support}: Designed to handle somewhat large data by supporting long vectors.
 \end{itemize}
+
+\section{Installation and Launch}
+
+\subsection{Linux / Unix}
+An MPI library (e.g., OpenMPI, MPICH2) is required. Build and install the package:
+\begin{verbatim}
+R CMD INSTALL Rhpc_0.26.1.tar.gz
+\end{verbatim}
+
+If using other MPI implementations like Fujitsu MPI, specify compile and link flags with \texttt{--configure-args}.
+
+\subsubsection{Launch via mpirun (Batch Execution)}
+Use the \texttt{Rhpc} shell generated within the package to launch R with multiple processes:
+\begin{verbatim}
+mpirun -n 4 ~/R/.../Rhpc/Rhpc CMD BATCH -q --no-save test.R
+\end{verbatim}
+
+\subsection{Windows (MS-MPI)}
+Install Microsoft MPI (MS-MPI) and set the environment variables \texttt{MSMPI\_INC}, \texttt{MSMPI\_LIB32}, and \texttt{MSMPI\_LIB64}.
+Simply calling \texttt{Rhpc\_initialize()} from RGui or RStudio will automatically launch \texttt{mpiexec} and \texttt{fakemaster}.
 
 \section{Basic Usage}
-To use \texttt{Rhpc}, initialize the MPI environment first and then obtain a worker cluster handle. The behavior of \texttt{Rhpc\_getHandle()} depends on how it is called.
+To use \texttt{Rhpc}, first initialize the MPI environment and obtain a worker handle (\texttt{cl}).
+The behavior of \texttt{Rhpc\_getHandle()} depends on how it is called:
 \begin{itemize}
-    \item \textbf{No argument}: obtains an existing worker process when R is already running under \texttt{mpirun} or \texttt{mpiexec}.
-    \item \textbf{Numeric argument}: dynamically spawns the specified number of worker processes.
+    \item \textbf{No arguments}: Obtains existing worker processes if R was already launched under \texttt{mpirun} or \texttt{mpiexec}.
+    \item \textbf{Numeric argument}: Dynamically generates the specified number of worker processes (e.g., \texttt{Rhpc\_getHandle(4)}).
 \end{itemize}
 
-The following example shows how to initialize the system and retrieve the process IDs (PIDs) from all active workers.
+A typical workflow is: \texttt{Rhpc\_initialize()} $\rightarrow$ \texttt{Rhpc\_getHandle()} $\rightarrow$ Parallel Processing $\rightarrow$ \texttt{Rhpc\_finalize()}.
 
 <<echo=TRUE, eval=FALSE>>=
 library(Rhpc)
-# Initialize the Rhpc environment
+# Initialize Rhpc environment
 Rhpc_initialize()
 
-# Obtain a cluster handle (no argument when running under mpirun/mpiexec,
-# or specify a number like Rhpc_getHandle(4) to spawn workers dynamically)
+# Get handle (no arguments under mpirun, or Rhpc_getHandle(4) for dynamic generation)
 cl <- Rhpc_getHandle()
 
-# Execute a command on all workers and collect results on the master process
+# Execute function on all workers and gather results on the master
 pids <- Rhpc_worker_call(cl, Sys.getpid)
 print(pids)
 
-# If you want to run code on workers without collecting results,
-# use Rhpc_worker_noback(). This is useful when you only need execution.
+# Execute code on workers without returning results
 Rhpc_worker_noback(cl, function() {
     cat("worker process:", Sys.getpid(), "\n")
 })
 
-# Finalize the Rhpc environment
+# Finalize
 Rhpc_finalize()
 @
 
 \section{Backend Management on Windows}
-On Windows, \texttt{Rhpc} greatly simplifies MPI environment setup. In GUI environments such as RGui or RStudio, it is not necessary to start R with \texttt{mpiexec} from the beginning. Instead, \texttt{Rhpc} uses a helper program called \texttt{fakemaster} to prepare the MPI master environment.
-
-When \texttt{Rhpc\_initialize()} is called, it performs the following steps internally:
+On Windows, \texttt{Rhpc\_initialize()} performs the following internally:
 \begin{enumerate}
-    \item If the current R process is not running under \texttt{mpiexec}, start \texttt{fakemaster}.
-    \item Launch \texttt{fakemaster.exe} via \texttt{mpiexec} and establish a connection between \texttt{fakemaster} and the current R process using a named pipe.
-    \item Read the MPI environment variables generated by \texttt{fakemaster} and import them into the current R process.
-    \item This allows MPI operations such as \texttt{Rhpc\_getHandle()} and \texttt{Rhpc\_worker\_call()} to work in a GUI-based R session.
-    \item It also enables dynamic worker creation through \texttt{Rhpc\_getHandle()}.
+    \item Launches \texttt{fakemaster} if the current R process is not running under \texttt{mpiexec}.
+    \item Launches \texttt{fakemaster.exe} via \texttt{mpiexec} and connects it to the R process using a named pipe.
+    \item Imports the MPI environment variables generated by \texttt{fakemaster} into the R process.
+    \item This enables the use of \texttt{Rhpc\_getHandle()} and \texttt{Rhpc\_worker\_call()} even in GUI-based R sessions.
 \end{enumerate}
 
-With this mechanism, a Windows R session does not have to be started directly with \texttt{mpiexec}. Simply calling \texttt{Rhpc\_initialize()} is enough, and the details of starting and connecting \texttt{mpiexec} and \texttt{fakemaster} are handled automatically.
-
-Note the following points:
+Note:
 \begin{itemize}
-    \item When \texttt{Rhpc\_initialize()} is executed, \texttt{mpiexec} and \texttt{fakemaster} windows are launched in the background.
-    \item Closing these windows or processes prematurely will break the MPI connection and cause \texttt{Rhpc} operations to fail.
-    \item If needed, you can specify the \texttt{mpiexec} command line, for example with \texttt{options(Rhpc.mpiexec="mpiexec -n 1")}. 
-    \item On Windows, MS-MPI must be installed, and the environment variables \texttt{MSMPI\_INC}, \texttt{MSMPI\_LIB32}, and \texttt{MSMPI\_LIB64} need to be configured.
+    \item When \texttt{Rhpc\_initialize()} is executed, windows for \texttt{mpiexec} and \texttt{fakemaster} will launch in the background. Closing these will break the MPI connection and cause the process to fail.
+    \item You can specify the \texttt{mpiexec} command line using \texttt{options(Rhpc.mpiexec="mpiexec -n 1")}.
 \end{itemize}
 
 <<echo=TRUE, eval=FALSE>>=
 library(Rhpc)
-# Initialize Rhpc. On Windows, this starts mpiexec and fakemaster automatically
-# and sets up the MPI master environment.
+oldoptions <- options(Rhpc.mpiexec = "mpiexec -n 1")
 Rhpc_initialize()
-cl <- Rhpc_getHandle()
+cl <- Rhpc_getHandle(3)
 
-# Retrieve environment information from each worker to verify setup.
-# This confirms that the workers are active and the environment is configured correctly.
 worker_env_info <- Rhpc_worker_call(cl, function() {
     list(
         computer_name = Sys.getenv("COMPUTERNAME"),
@@ -90,137 +101,515 @@ worker_env_info <- Rhpc_worker_call(cl, function() {
     )
 })
 print(worker_env_info)
-
-# Finalize the Rhpc environment
 Rhpc_finalize()
+options(oldoptions)
 @
 
-\section{Rhpc MPI Backend and Communication Model}
-\texttt{Rhpc} combines MPI collective communication with per-worker point-to-point communication to efficiently gather function execution results.
+\section{Choosing Between Collective and Point-to-Point Communication}
+\texttt{Rhpc} uses either \textbf{Collective} communication or \textbf{Point-to-Point (P2P)} communication depending on the use case.
+The basic principles for selection are as follows:
 
-\subsection{Common processing: instruction distribution with \texttt{MPI\_Bcast}}
-Many \texttt{Rhpc} functions serialize the target function and its arguments on the master process only once and broadcast them to all workers using \texttt{MPI\_Bcast}. Unlike standard R parallel backends that send data to each worker sequentially ($O(N)$), \texttt{MPI\_Bcast} leverages optimized tree-based distribution algorithms, typically achieving $O(\log N)$ performance. In the backend of functions such as \texttt{Rhpc\_worker\_call()} and \texttt{Rhpc\_lapply()}, this significantly reduces the CPU and memory pressure on the master process.
-
-\subsection{Result collection and individual communication}
-When results are collected, each worker sends its execution result back to the master individually. Workers send data asynchronously using \texttt{MPI\_Isend}, while the master initiates non-blocking receives from each worker with \texttt{MPI\_Irecv} and waits for all transfers to complete with \texttt{MPI\_Waitall}.
-
-This asynchronous model allows the communication to overlap with the serialization/deserialization tasks, preventing a slow worker from blocking the master's ability to receive data from other faster workers.
-
-This approach offers the following advantages:
 \begin{itemize}
-    \item Input data and instructions intended for all workers are sent once using collective communication, avoiding repeated transmission.
-    \item Because output sizes often differ among workers, result reception is handled flexibly by point-to-point communication.
-    \item Results can be aggregated efficiently as they arrive, without strict dependency on the completion order of workers.
-    \item Reduced serialization overhead on the master side, as the common function logic is only serialized once for the broadcast.
+    \item \textbf{Send identical content to all workers} $\rightarrow$ Collective (\texttt{MPI\_Bcast})
+    \item \textbf{Content varies per worker} $\rightarrow$ P2P (\texttt{MPI\_Isend} / \texttt{MPI\_Irecv})
+    \item \textbf{Result size varies per worker} $\rightarrow$ P2P (Asynchronous receive)
+    \item \textbf{No results returned} $\rightarrow$ Complete using only Collective
 \end{itemize}
 
-\subsection{Simplified communication when results are not required}
-Functions such as \texttt{Rhpc\_worker\_noback()} and some export operations only broadcast instructions from the master to all workers. Since no results are returned, communication can be completed with \texttt{MPI\_Bcast} alone, and point-to-point communication is unnecessary.
+\subsection{Communication Method Decision Flow}
+The following figure shows the flowchart of how Rhpc chooses the communication method for each operation.
 
-\subsection{Dynamic worker creation and \texttt{MPI\_Comm\_spawn}}
-If the current process is not already running under \texttt{mpiexec}, \texttt{Rhpc\_initialize()} calls \texttt{MPI\_Comm\_spawn} internally to create worker processes dynamically. On Windows, \texttt{fakemaster} precedes this step by launching \texttt{mpiexec} and passing MPI environment variables into the current R process. As a result, worker processes can be created dynamically even in GUI environments, and the collective/individual communication model can be used.
-
-\section{Communication Diagram (sequence diagram)}
-The following R plot illustrates, in a simple sequence-style diagram, how collective communication
-(e.g. \texttt{MPI\_Bcast}) and point-to-point communication (e.g. \texttt{MPI\_Isend}/\texttt{MPI\_Irecv})
-are used by \texttt{Rhpc} functions. This is a rough schematic drawn using base R plotting primitives.
-
-<<echo=TRUE, fig=TRUE, width=6, height=4>>=
-# Sequence-style diagram: Master vs multiple Workers
-draw_rhpc_sequence <- function(nworkers=3){
-    lanes <- c("Master", paste0("Worker", seq_len(nworkers)))
-    nl <- length(lanes)
-    y <- rev(seq_len(nl))
-    y_master <- y[1]
-
-    oldpar <- par(mar=c(3,2,3,2))
-    on.exit(par(oldpar))
-    plot(c(0,10), c(0.5, nl+0.5), type="n", xaxt="n", yaxt="n", xlab="Time", ylab="",
-             main="Collective vs Point-to-Point Communication (schematic)")
-    # draw lifelines
-    for(i in seq_along(lanes)){
-        text(0.4, y[i], lanes[i], adj=0)
-        segments(1, y[i], 9.5, y[i], lty=2, col="#777777")
+<<echo=TRUE, fig=TRUE, width=8, height=7>>=
+draw_comm_decision_flow <- function() {
+    COL <- list(
+        start   = "#E8F4FD",
+        collect = "#D5F5E3",
+        p2p     = "#FDEBD0",
+        both    = "#E8DAEF",
+        text    = "#2C3E50"
+    )
+    box <- function(x, y, w, h, label, fill, lwd = 1.5) {
+        rect(x - w/2, y - h/2, x + w/2, y + h/2,
+             col = fill, border = COL$text, lwd = lwd)
+        text(x, y, label, cex = 0.78, col = COL$text)
+    }
+    arrow <- function(x1, y1, x2, y2, label = NULL) {
+        segments(x1, y1, x2, y2, lwd = 1.4, col = COL$text)
+        dx <- x2 - x1; dy <- y2 - y1
+        len <- sqrt(dx^2 + dy^2)
+        if (len > 0) {
+            ux <- dx / len; uy <- dy / len
+            arr <- 0.18
+            arrows(x2 - ux * arr, y2 - uy * arr, x2, y2,
+                   length = 0.08, lwd = 1.4, col = COL$text)
+        }
+        if (!is.null(label)) {
+            text((x1 + x2) / 2 + 0.15, (y1 + y2) / 2, label, cex = 0.72, col = "#555555")
+        }
     }
 
-    # collective: MPI_Bcast at t=2 (draw arrows from master to all workers)
-    text(2, nl+0.2, "MPI_Bcast (broadcast input)", cex=0.9)
-    for(i in 2:length(y)){
-        arrows(2, y_master, 2.9, y[i], length=0.06, code=2)
-    }
+    oldpar <- par(mar = c(1, 1, 3, 1))
+    plot(c(0, 10), c(0, 14), type = "n", axes = FALSE, xlab = "", ylab = "",
+         main = "Rhpc: Collective vs P2P Comm Selection")
 
-    # point-to-point example: master -> worker2, then worker2 -> master
-    w2 <- 3 # show as Worker2 (index into lanes)
-    x1 <- 4; x2 <- 5
-    arrows(x1, y_master, x2, y[w2], col="#1f77b4", length=0.06)
-    text((x1+x2)/2, (y_master+y[w2])/2 + 0.25, "MPI_Isend (to one worker)", col="#1f77b4", cex=0.8)
+    box(5, 13, 4.2, 0.9, "Rhpc Function Call", COL$start)
 
-    # reply
-    x3 <- 6; x4 <- 7
-    arrows(x3, y[w2], x4, y_master, col="#d62728", length=0.06)
-    text((x3+x4)/2, (y_master+y[w2])/2 - 0.25, "MPI_Isend / MPI_Irecv (reply)", col="#d62728", cex=0.8)
+    box(5, 11.2, 5.0, 0.9, "Send identical command/func\nto all workers?", "#FFFFFF")
+    arrow(5, 12.55, 5, 11.65)
 
-    legend(8.1, nl+0.4, legend=c("collective (MPI_Bcast)", "p2p (MPI_Isend/MPI_Irecv)"),
-                 col=c("black","#1f77b4"), lty=1, bty="n", cex=0.8)
+    box(2.2, 9.2, 3.2, 1.0, "Yes\n(MPI_Bcast)", COL$collect)
+    box(7.8, 9.2, 3.2, 1.0, "No\n(MPI_Isend individual)", COL$p2p)
+    arrow(4.2, 11.2, 2.2, 9.7, "Identical")
+    arrow(5.8, 11.2, 7.8, 9.7, "Individual")
+
+    box(2.2, 7.0, 3.4, 0.9, "Return results to Master?", "#FFFFFF")
+    arrow(2.2, 8.7, 2.2, 7.45)
+
+    box(0.9, 5.0, 2.4, 0.9, "No\nBcast only", COL$collect)
+    box(3.5, 5.0, 2.6, 0.9, "Yes\nBcast + P2P", COL$both)
+    arrow(1.5, 6.55, 0.9, 5.45, "noback\nExport")
+    arrow(2.9, 6.55, 3.5, 5.45, "worker_call\nlapply result")
+
+    box(7.8, 7.0, 3.6, 0.9, "Split input data\nper worker?", "#FFFFFF")
+    arrow(7.8, 8.7, 7.8, 7.45)
+
+    box(6.3, 5.0, 2.6, 0.9, "lapply\n(chunk split)", COL$p2p)
+    box(9.3, 5.0, 2.6, 0.9, "lapplyLB\n(element by element)", COL$p2p)
+    arrow(7.0, 6.55, 6.3, 5.45, "Chunk")
+    arrow(8.6, 6.55, 9.3, 5.45, "Sequential")
+
+    box(5, 2.8, 8.5, 1.6,
+        paste(
+            "Collective: Commands, functions, arguments (identical for all)",
+            "P2P: Input chunks, results, exit signals (per worker)",
+            sep = "\n"
+        ),
+        "#F8F9F9", lwd = 1)
+    arrow(0.9, 4.55, 2.5, 3.6)
+    arrow(3.5, 4.55, 4.0, 3.6)
+    arrow(6.3, 4.55, 5.5, 3.6)
+    arrow(9.3, 4.55, 7.5, 3.6)
+
+    legend("bottom", inset = 0.02, horiz = TRUE, bty = "n", cex = 0.75,
+           legend = c("Collective (MPI_Bcast/Gather)", "P2P (MPI_Isend/Irecv)", "Both"),
+           fill = c(COL$collect, COL$p2p, COL$both), border = COL$text)
+    par(oldpar)
 }
-
-draw_rhpc_sequence(nworkers=3)
+draw_comm_decision_flow()
 @
 
-\section{Parallel Mapping with \texttt{Rhpc\_lapply}}
-One of the most powerful features of \texttt{Rhpc} is parallel mapping over lists and vectors with \texttt{Rhpc\_lapply}. This function preserves the behavior of base \texttt{lapply} while distributing work across initialized MPI workers. By default, it chunks the input data and distributes it to workers.
+\subsection{MPI Functions and Roles}
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Comm. Type} & \textbf{MPI Function} & \textbf{Usage in Rhpc} \\
+\hline
+Collective & \texttt{MPI\_Bcast} & Broadcast command/function/args to all workers \\
+Collective & \texttt{MPI\_Gather} & Gather result size info from each worker to master \\
+P2P & \texttt{MPI\_Isend} & Master $\to$ Worker (input chunk), Worker $\to$ Master (result) \\
+P2P & \texttt{MPI\_Irecv} & Master asynchronously receives results from workers \\
+P2P & \texttt{MPI\_Probe} & Detect completed workers in \texttt{lapply}/\texttt{lapplyLB} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Sequence Diagrams by Function}
+The following are communication sequence diagrams for the main functions.
+All diagrams are drawn using R's \texttt{plot}.
+
+<<echo=FALSE>>=
+draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
+                                  xlim = c(0, 10), show_legend = TRUE) {
+    COL <- list(c = "#27AE60", p = "#E67E22", e = "#3498DB", r = "#C0392B")
+    lanes <- c("Master", paste0("W", seq_len(nworkers)))
+    nl <- length(lanes)
+    y <- rev(seq_len(nl))
+    ym <- y[1]
+
+    oldpar <- par(mar = c(3, 2, 3, 2))
+    plot(xlim, c(0.3, nl + 0.8), type = "n", xaxt = "n", yaxt = "n",
+         xlab = "time ->", ylab = "", main = title)
+    for (i in seq_along(lanes)) {
+        text(0.25, y[i], lanes[i], adj = 0, font = 2, cex = 0.85)
+        segments(0.75, y[i], xlim[2] - 0.2, y[i], lty = 2, col = "#BBBBBB")
+    }
+
+    bcast_all <- function(x, label) {
+        text(x, nl + 0.55, label, cex = 0.68, col = COL$c, font = 2)
+        for (i in 2:nl) arrows(x, ym, x + 0.32, y[i], length = 0.05, col = COL$c, lwd = 1.4)
+    }
+    gather_all <- function(x, label) {
+        text(x, nl + 0.55, label, cex = 0.68, col = COL$c, font = 2)
+        for (i in 2:nl) arrows(x + 0.32, y[i], x, ym, length = 0.05, col = COL$c, lwd = 1.4)
+    }
+    p2p_m2w <- function(x1, x2, w, label) {
+        wy <- y[w + 1]
+        arrows(x1, ym, x2, wy, length = 0.05, col = COL$p, lwd = 1.4)
+        text((x1 + x2) / 2, (ym + wy) / 2 + 0.22, label, cex = 0.6, col = COL$p)
+    }
+    p2p_w2m <- function(x1, x2, w, label) {
+        wy <- y[w + 1]
+        arrows(x1, wy, x2, ym, length = 0.05, col = COL$r, lwd = 1.4)
+        text((x1 + x2) / 2, (ym + wy) / 2 - 0.22, label, cex = 0.6, col = COL$r)
+    }
+    exec_w <- function(x, w, label = "run") {
+        wy <- y[w + 1]
+        rect(x - 0.22, wy - 0.11, x + 0.22, wy + 0.11, col = COL$e, border = NA)
+        text(x, wy, label, cex = 0.52, col = "white", font = 2)
+    }
+    exec_all <- function(x, label = "run") {
+        for (i in seq_len(nworkers)) exec_w(x, i, label)
+    }
+    loop_box <- function(x1, x2, ylo, yhi, label) {
+        rect(x1, ylo, x2, yhi, border = "#999999", col = NA, lty = 2)
+        text((x1 + x2) / 2, yhi + 0.15, label, cex = 0.65, col = "#666666", font = 3)
+    }
+    note <- function(x, yy, label) {
+        text(x, yy, label, cex = 0.65, col = "#555555")
+    }
+
+    for (ev in events) {
+        switch(ev$type,
+               bcast_all = bcast_all(ev$x, ev$label),
+               gather_all = gather_all(ev$x, ev$label),
+               p2p_m2w = p2p_m2w(ev$x1, ev$x2, ev$w, ev$label),
+               p2p_w2m = p2p_w2m(ev$x1, ev$x2, ev$w, ev$label),
+               exec_w = exec_w(ev$x, ev$w, ev$label %||% "run"),
+               exec_all = exec_all(ev$x, ev$label %||% "run"),
+               loop_box = loop_box(ev$x1, ev$x2, ev$ylo, ev$yhi, ev$label),
+               note = note(ev$x, ev$y, ev$label))
+    }
+
+    if (show_legend) {
+        legend(xlim[2] - 2.8, 0.45,
+               legend = c("Collective", "P2P (send)", "Compute", "P2P (result)"),
+               fill = c(COL$c, COL$p, COL$e, COL$r), border = NA, bty = "n", cex = 0.7)
+    }
+    par(oldpar)
+}
+`%||%` <- function(a, b) if (is.null(a)) b else a
+@
+
+\subsubsection{Rhpc\_worker\_noback()}
+Worker execution that returns no results. Completes using only Collective communication (\texttt{MPI\_Bcast}).
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_worker_noback",
+    list(
+        list(type = "bcast_all", x = 1.0, label = "Bcast: cmd (NORET)"),
+        list(type = "bcast_all", x = 2.2, label = "Bcast: FUN+args"),
+        list(type = "exec_all",  x = 3.8, label = "FUN()"),
+        list(type = "note",      x = 5.5, y = 1.2, label = "(no result returned)")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_Export()}
+Distributes variables to the global environment of all workers. Like \texttt{Rhpc\_worker\_noback}, it uses only \texttt{MPI\_Bcast}, but executes \texttt{assign()} on the workers. Bcast is repeated for each variable.
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_Export",
+    list(
+        list(type = "bcast_all", x = 1.0, label = "Bcast: cmd (EXPORT)"),
+        list(type = "bcast_all", x = 2.2, label = "Bcast: name+value"),
+        list(type = "exec_all",  x = 3.8, label = "assign()"),
+        list(type = "loop_box",  x1 = 0.7, x2 = 4.5, ylo = 0.55, yhi = 4.3,
+             label = "repeat for each variable"),
+        list(type = "note",      x = 5.8, y = 1.2, label = "(no result returned)")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_worker\_call()}
+Executes the same function on all workers and returns results to the master.
+Command distribution is Bcast, result size is Gather, and result bodies are P2P (Isend/Irecv).
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_worker_call",
+    list(
+        list(type = "bcast_all", x = 0.8,  label = "Bcast: cmd (RET)"),
+        list(type = "bcast_all", x = 1.8,  label = "Bcast: FUN+args"),
+        list(type = "exec_all",  x = 3.0,  label = "FUN()"),
+        list(type = "gather_all", x = 4.2, label = "Gather: result size"),
+        list(type = "p2p_w2m", x1 = 5.2, x2 = 5.8, w = 1, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.5, x2 = 6.1, w = 2, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.8, x2 = 6.4, w = 3, label = "Isend/Irecv"),
+        list(type = "note",    x = 7.2, y = 1.2, label = "return list of results")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_EvalQ()}
+A wrapper for \texttt{Rhpc\_worker\_call(cl, eval, substitute(expr))}.
+The communication pattern is identical to \texttt{Rhpc\_worker\_call}.
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_EvalQ",
+    list(
+        list(type = "bcast_all", x = 0.8,  label = "Bcast: cmd (RET)"),
+        list(type = "bcast_all", x = 1.8,  label = "Bcast: eval+expr"),
+        list(type = "exec_all",  x = 3.0,  label = "eval(expr)"),
+        list(type = "gather_all", x = 4.2, label = "Gather: result size"),
+        list(type = "p2p_w2m", x1 = 5.2, x2 = 5.8, w = 1, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.5, x2 = 6.1, w = 2, label = "Isend/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.8, x2 = 6.4, w = 3, label = "Isend/Irecv"),
+        list(type = "note",    x = 7.2, y = 1.2, label = "return list of results")
+    ),
+    nworkers = 3
+)
+@
+
+\subsubsection{Rhpc\_lapply()}
+Splits input \texttt{X} into chunks based on the number of workers, distributes the function via Bcast, and input chunks via P2P.
+Results are collected in completion order using \texttt{MPI\_Probe}/\texttt{MPI\_Irecv}, finally sending an exit signal via P2P.
+
+<<echo=TRUE, fig=TRUE, width=10, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_lapply",
+    list(
+        list(type = "bcast_all", x = 0.7, label = "Bcast: cmd+FUN+args"),
+        list(type = "p2p_m2w", x1 = 1.6, x2 = 2.1, w = 1, label = "Isend: chunk1"),
+        list(type = "p2p_m2w", x1 = 1.75, x2 = 2.25, w = 2, label = "Isend: chunk2"),
+        list(type = "p2p_m2w", x1 = 1.9, x2 = 2.4, w = 3, label = "Isend: chunk3"),
+        list(type = "exec_all",  x = 3.3, label = "lapply"),
+        list(type = "p2p_w2m", x1 = 4.3, x2 = 4.9, w = 2, label = "Probe/Irecv"),
+        list(type = "p2p_w2m", x1 = 4.8, x2 = 5.4, w = 1, label = "Probe/Irecv"),
+        list(type = "p2p_w2m", x1 = 5.3, x2 = 5.9, w = 3, label = "Probe/Irecv"),
+        list(type = "loop_box", x1 = 4.0, x2 = 6.2, ylo = 0.55, yhi = 4.3,
+             label = "until all chunks done"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 1, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 2, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.0, x2 = 7.35, w = 3, label = "exit")
+    ),
+    nworkers = 3, xlim = c(0, 10)
+)
+@
+
+\subsubsection{Rhpc\_lapplyLB()}
+Broadcasts the function, but distributes inputs \textbf{element by element} to idle workers via P2P.
+Sends the next element as a worker finishes, and retrieves results sequentially via P2P.
+
+<<echo=TRUE, fig=TRUE, width=10, height=5.5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_lapplyLB",
+    list(
+        list(type = "bcast_all", x = 0.7, label = "Bcast: cmd+FUN+args"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 1, label = "Isend: x[1]"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 2, label = "Isend: x[2]"),
+        list(type = "p2p_m2w", x1 = 1.5, x2 = 1.95, w = 3, label = "Isend: x[3]"),
+        list(type = "exec_w",   x = 2.8, w = 1, label = "FUN"),
+        list(type = "exec_w",   x = 2.8, w = 2, label = "FUN"),
+        list(type = "exec_w",   x = 2.8, w = 3, label = "FUN"),
+        list(type = "p2p_w2m", x1 = 3.5, x2 = 4.0, w = 1, label = "Irecv: res"),
+        list(type = "p2p_m2w", x1 = 4.2, x2 = 4.65, w = 1, label = "Isend: x[4]"),
+        list(type = "p2p_w2m", x1 = 5.0, x2 = 5.5, w = 3, label = "Irecv: res"),
+        list(type = "p2p_m2w", x1 = 5.7, x2 = 6.15, w = 3, label = "Isend: x[5]"),
+        list(type = "loop_box", x1 = 3.2, x2 = 6.5, ylo = 0.55, yhi = 4.3,
+             label = "while tasks remain: send to idle worker, recv result"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 1, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 2, label = "exit"),
+        list(type = "p2p_m2w", x1 = 7.5, x2 = 7.85, w = 3, label = "exit")
+    ),
+    nworkers = 3, xlim = c(0, 10)
+)
+@
+
+\subsubsection{Rhpc\_setupRNG()}
+Automatically called within \texttt{Rhpc\_getHandle()}. Uses \texttt{Rhpc\_lapply} internally to distribute distinct random seeds to each worker via P2P (same communication pattern as \texttt{lapply}).
+
+<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+draw_rhpc_seq_diagram(
+    "Rhpc_setupRNG (via Rhpc_lapply)",
+    list(
+        list(type = "bcast_all", x = 0.8, label = "Bcast: cmd+FUN"),
+        list(type = "p2p_m2w", x1 = 1.7, x2 = 2.15, w = 1, label = "seed[1]"),
+        list(type = "p2p_m2w", x1 = 1.85, x2 = 2.3, w = 2, label = "seed[2]"),
+        list(type = "p2p_m2w", x1 = 2.0, x2 = 2.45, w = 3, label = "seed[3]"),
+        list(type = "exec_all",  x = 3.2, label = "set seed"),
+        list(type = "p2p_w2m", x1 = 4.2, x2 = 4.75, w = 1, label = "done"),
+        list(type = "p2p_w2m", x1 = 4.5, x2 = 5.05, w = 2, label = "done"),
+        list(type = "p2p_w2m", x1 = 4.8, x2 = 5.35, w = 3, label = "done"),
+        list(type = "note", x = 6.5, y = 1.2, label = "L'Ecuyer-CMRG stream per worker")
+    ),
+    nworkers = 3
+)
+@
+
+\subsection{Comparison of Communication Methods}
+The following figure shows a summary of differences in communication methods across the main functions.
+
+<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+draw_comm_comparison <- function() {
+    funcs <- c("noback", "Export", "call", "EvalQ", "lapply", "lapplyLB", "setupRNG")
+    bcast <- c(1, 1, 1, 1, 1, 1, 1)
+    gather <- c(0, 0, 1, 1, 0, 0, 0)
+    isend_in <- c(0, 0, 0, 0, 1, 1, 1)
+    irecv_out <- c(0, 0, 1, 1, 1, 1, 1)
+
+    mat <- rbind(
+        "MPI_Bcast\n(Command/Func)" = bcast,
+        "MPI_Gather\n(Result Size)" = gather,
+        "MPI_Isend\n(Input/Task)" = isend_in,
+        "MPI_Irecv\n(Result Recv)" = irecv_out
+    )
+    colnames(mat) <- funcs
+
+    oldpar <- par(mar = c(6, 8, 3, 2))
+    on.exit(par(oldpar))
+    barplot(mat, beside = TRUE, col = c("#27AE60", "#8E44AD", "#E67E22", "#C0392B"),
+            border = NA, las = 2, cex.names = 0.85,
+            main = "By Function: MPI Communication Methods Used",
+            ylab = "Used (1) / Unused (0)", ylim = c(0, 1.35))
+    legend("top", inset = 0.02, horiz = TRUE, bty = "n", cex = 0.75,
+           legend = rownames(mat),
+           fill = c("#27AE60", "#8E44AD", "#E67E22", "#C0392B"))
+}
+draw_comm_comparison()
+@
+
+\subsection{Reasons for Communication Choices}
+\begin{itemize}
+    \item \textbf{Why use Bcast for commands?}:
+          Functions and arguments are identical for all workers. Using a single serialization and tree-based distribution ($O(\log N)$) is more efficient than sending sequentially to each worker ($O(N)$).
+    \item \textbf{Why use P2P for input data (\texttt{lapply})?}:
+          Input chunks for each worker differ in content and size. Bcast is inappropriate since it sends identical data to everyone.
+    \item \textbf{Why use P2P for results?}:
+          The result size for each worker is unknown until runtime and varies between workers.
+          Asynchronous reception with \texttt{MPI\_Irecv} allows processing results from faster workers first.
+    \item \textbf{Why \texttt{lapplyLB} uses P2P sequential distribution?}:
+          When task execution times vary, dynamic allocation to idle workers (\texttt{lapplyLB}) yields higher CPU utilization than pre-chunking (\texttt{lapply}).
+\end{itemize}
+
+\section{List of Main Functions}
+
+\subsection{Environment Management}
+\begin{itemize}
+    \item \texttt{Rhpc\_initialize()}: Initializes the MPI environment.
+    \item \texttt{Rhpc\_finalize()}: Terminates the MPI environment.
+    \item \texttt{Rhpc\_getHandle(procs)}: Obtains the worker cluster handle. Dynamically generates workers if a numeric value is specified for \texttt{procs}.
+    \item \texttt{Rhpc\_numberOfWorker(cl)}: Returns the number of workers.
+\end{itemize}
+
+\subsection{Execution on Workers}
+\begin{itemize}
+    \item \texttt{Rhpc\_worker\_call(cl, FUN, ...)}: Executes \texttt{FUN} on all workers and returns a list of results.
+    \item \texttt{Rhpc\_worker\_noback(cl, FUN, ...)}: Executes \texttt{FUN} on all workers but returns no results.
+    \item \texttt{Rhpc\_EvalQ(cl, expr)}: Evaluates the expression \texttt{expr} on all workers (equivalent to \texttt{clusterEvalQ}).
+\end{itemize}
+
+\subsection{Parallel *apply Series}
+\begin{itemize}
+    \item \texttt{Rhpc\_lapply(cl, X, FUN, ...)}: Processes a list/vector in parallel similarly to \texttt{lapply}. Splits input into chunks and distributes to workers.
+    \item \texttt{Rhpc\_lapplyLB(cl, X, FUN, ...)}: Load-balancing version. Sequentially assigns tasks to idle workers, effective when execution times vary.
+    \item \texttt{Rhpc\_sapply(cl, X, FUN, ...)}: Equivalent to \texttt{sapply}. Can simplify results into a vector or matrix.
+    \item \texttt{Rhpc\_sapplyLB(cl, X, FUN, ...)}: Load-balancing version of \texttt{sapply}.
+    \item \texttt{Rhpc\_apply(cl, X, MARGIN, FUN, ...)}: Equivalent to \texttt{apply}. Applies in parallel along specified dimensions of an array.
+\end{itemize}
+
+\subsection{Data Sharing and Utilities}
+\begin{itemize}
+    \item \texttt{Rhpc\_Export(cl, variableNames)}: Distributes variables defined on the master to the global environment of all workers.
+    \item \texttt{Rhpc\_setupRNG(cl, iseed)}: Sets an independent random number stream (L'Ecuyer-CMRG) for each worker. Automatically called within \texttt{Rhpc\_getHandle()}.
+    \item \texttt{Rhpc\_enquote(...)}: Internal utility for quoting arguments.
+    \item \texttt{Rhpc\_splitList(var, num)}: Splits a list into a specified number of parts.
+    \item \texttt{Rhpc\_serialize()} / \texttt{Rhpc\_unserialize()}: Custom serialization functions.
+\end{itemize}
+
+\section{Parallel Mapping (Rhpc\_lapply)}
+\texttt{Rhpc\_lapply} has the same interface as \texttt{lapply}, splitting input data into chunks based on the number of workers for parallel execution.
 
 <<echo=TRUE, eval=FALSE>>=
 Rhpc_initialize()
 cl <- Rhpc_getHandle()
 
-# Perform parallel computation
 input_data <- 1:10
 results <- Rhpc_lapply(cl, input_data, function(x) {
     return(x^2)
 })
 print(unlist(results))
+
 Rhpc_finalize()
 @
 
-\section{Load Balancing with \texttt{Rhpc\_lapplyLB}}
-For tasks where the execution time varies significantly between elements, \texttt{Rhpc\_lapplyLB} provides a Load Balancing mechanism. Instead of pre-chunking the data, it distributes tasks to workers as they become available, ensuring higher CPU utilization in heterogeneous workloads.
+\section{Load Balancing (Rhpc\_lapplyLB)}
+When execution times for each element vary, \texttt{Rhpc\_lapplyLB} is effective.
+Instead of pre-chunking, it sequentially assigns tasks to idle workers, thereby improving CPU utilization.
 
 <<echo=TRUE, eval=FALSE>>=
 Rhpc_initialize()
 cl <- Rhpc_getHandle()
 input_data <- 1:10
 
-# Load balanced version for uneven task lengths
 results_lb <- Rhpc_lapplyLB(cl, input_data, function(x) {
-    Sys.sleep(runif(1, 0, 1)) # Simulate variable workload
+    Sys.sleep(runif(1, 0, 1))  # Simulate execution time variance
     return(x * 10)
 })
+print(unlist(results_lb))
+Rhpc_finalize()
+@
+
+\section{Using sapply / apply}
+\texttt{Rhpc\_sapply} and \texttt{Rhpc\_apply} can be used similarly to the \texttt{parallel} package.
+
+<<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+
+# Equivalent to sapply
+res <- Rhpc_sapply(cl, 1:10000, sqrt)
+
+# Equivalent to apply
+df <- data.frame(a = 1:4, b = 5:8)
+Rhpc_apply(cl, df, 1, max)  # Row direction
+Rhpc_apply(cl, df, 2, max)  # Column direction
+
 Rhpc_finalize()
 @
 
 \section{Exporting Variables to Workers}
-In many cases, workers need access to data or variables defined in the master R session. The \texttt{Rhpc\_Export} function broadcasts variables to the global environment of all worker nodes.
+To use variables defined on the master inside workers, distribute them to the global environment using \texttt{Rhpc\_Export}.
 
 <<echo=TRUE, eval=FALSE>>=
+Rhpc_initialize()
+cl <- Rhpc_getHandle()
+
 multiplier <- 10
-# Export the variable 'multiplier' to all workers
 Rhpc_Export(cl, "multiplier")
 
-# Use the exported variable on the worker side
 res <- Rhpc_worker_call(cl, function() {
     return(multiplier * 2)
 })
 print(res)
+
 Rhpc_finalize()
 @
 
-\section{Summary}
-Using \texttt{Rhpc} allows R users to bridge high-level statistical programming with the performance of low-level MPI. The main advantages are:
+\section{Options and MPI Attributes}
+After \texttt{Rhpc\_initialize()}, the following options are set in \texttt{options()}:
 \begin{itemize}
-    \item \textbf{Efficiency:} communication overhead is minimized compared to socket-based parallel processing.
-    \item \textbf{Scalability:} transitioning from local multicore testing to large distributed cluster execution is smooth.
-    \item \textbf{Simplicity:} complex parallel tasks can be written in familiar R-style syntax.
+    \item \texttt{Rhpc.mpi.rank}: Current MPI rank
+    \item \texttt{Rhpc.mpi.procs}: Total number of processes
+    \item \texttt{Rhpc.mpi.c.comm}: C language MPI communicator (pointer)
+    \item \texttt{Rhpc.mpi.f.comm}: Fortran MPI communicator
+\end{itemize}
+
+The \texttt{usequote} argument (default \texttt{TRUE}) can be disabled with \texttt{options(Rhpc.usequote=FALSE)}, which may improve performance.
+
+\section{Conclusion}
+By using \texttt{Rhpc}, you can achieve both the flexibility of R's statistical programming and the high performance of MPI.
+The main advantages are:
+\begin{itemize}
+    \item \textbf{Efficiency}: Smaller communication overhead compared to socket-based parallel processing.
+    \item \textbf{Scalability}: Smooth transition from local multi-core to large-scale clusters.
+    \item \textbf{Simplicity}: Can be parallelized using standard R style syntax like \texttt{lapply} and \texttt{apply}.
+    \item \textbf{Windows Support}: Can utilize MPI even from GUI environments using \texttt{fakemaster}.
 \end{itemize}
 
 \end{document}

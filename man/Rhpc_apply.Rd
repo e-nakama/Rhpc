@@ -29,13 +29,4 @@ Rhpc_apply(cl = NULL, X, MARGIN, FUN, ...,
 \seealso{
   \code{\link{Rhpc_lapply}}, \code{\link{Rhpc_sapply}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#df <- data.frame(a = 1:4, b = 5:8)
-#result <- Rhpc_apply(cl, df, 1, max)  # Max of each row
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

@@ -156,7 +156,6 @@ draw_comm_decision_flow <- function() {
     }
 
     oldpar <- par(mar = c(1, 1, 3, 1))
-    on.exit(par(oldpar))
     plot(c(0, 10), c(0, 14), type = "n", axes = FALSE, xlab = "", ylab = "",
          main = "Rhpc: 集団通信 vs 個別通信の選択")
 
@@ -201,6 +200,7 @@ draw_comm_decision_flow <- function() {
     legend("bottom", inset = 0.02, horiz = TRUE, bty = "n", cex = 0.75,
            legend = c("集団通信 (MPI_Bcast/Gather)", "個別通信 (MPI_Isend/Irecv)", "両方"),
            fill = c(COL$collect, COL$p2p, COL$both), border = COL$text)
+    par(oldpar)
 }
 draw_comm_decision_flow()
 @
@@ -234,7 +234,6 @@ draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
     ym <- y[1]
 
     oldpar <- par(mar = c(3, 2, 3, 2))
-    on.exit(par(oldpar))
     plot(xlim, c(0.3, nl + 0.8), type = "n", xaxt = "n", yaxt = "n",
          xlab = "time ->", ylab = "", main = title)
     for (i in seq_along(lanes)) {
@@ -293,6 +292,7 @@ draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
                legend = c("Collective", "P2P (send)", "Compute", "P2P (result)"),
                fill = c(COL$c, COL$p, COL$e, COL$r), border = NA, bty = "n", cex = 0.7)
     }
+    par(oldpar)
 }
 `%||%` <- function(a, b) if (is.null(a)) b else a
 @
@@ -512,7 +512,6 @@ draw_comm_comparison()
 \begin{itemize}
     \item \texttt{Rhpc\_worker\_call(cl, FUN, ...)}: 全ワーカーで \texttt{FUN} を実行し、結果のリストを返す。
     \item \texttt{Rhpc\_worker\_noback(cl, FUN, ...)}: 全ワーカーで \texttt{FUN} を実行するが、結果は返さない。
-    \item \texttt{Rhpc\_worker\_shy(cl, FUN, ...)}: \texttt{Rhpc\_worker\_noback} と同様（結果を返さない）。
     \item \texttt{Rhpc\_EvalQ(cl, expr)}: 全ワーカーで式 \texttt{expr} を評価する（\texttt{clusterEvalQ} 相当）。
 \end{itemize}
 

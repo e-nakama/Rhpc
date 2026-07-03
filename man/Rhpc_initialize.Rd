@@ -15,11 +15,4 @@ Rhpc_initialize()
 \seealso{
   \code{\link{Rhpc_finalize}}, \code{\link{Rhpc_getHandle}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-# Now ready to use Rhpc functions
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}

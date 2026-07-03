@@ -28,14 +28,4 @@ Rhpc_Export(cl, variableNames,
 \seealso{
   \code{\link{Rhpc_worker_call}}, \code{\link{Rhpc_EvalQ}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)
-#my_data <- 1:100
-#Rhpc_Export(cl, "my_data")
-# Now workers can use my_data
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}
