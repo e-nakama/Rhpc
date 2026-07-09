@@ -125,7 +125,7 @@ static HANDLE hP = NULL;
 static int cheatMPImaster(void)
 {
   PROCESS_INFORMATION fakemaster_pi = { 0 }; 
-  STARTUPINFO fakemaster_si = { sizeof(STARTUPINFO) };
+  STARTUPINFO fakemaster_si = { 0 };
   DWORD dwNumberOfBytesRead;
 
   char pipename[FAKE_PATH_MAX];
@@ -146,14 +146,14 @@ static int cheatMPImaster(void)
   Rprintf("Since this process was not started under mpiexec,\nstart up the cheat MPI master process:D\n");
   
   snprintf(pipename, sizeof(pipename), FAKE_PIPENAMEFMT, pid);
-  hP = CreateNamedPipe(pipename,
-    PIPE_ACCESS_DUPLEX|FILE_FLAG_WRITE_THROUGH,
-		       PIPE_TYPE_BYTE,
-		       1,
-		       FAKE_BUF_SZ,
-		       FAKE_BUF_SZ,
-		       FAKE_WAIT_TIME,
-		       NULL);
+  hP = CreateNamedPipe( pipename,
+                        PIPE_ACCESS_DUPLEX|FILE_FLAG_WRITE_THROUGH,
+		                    PIPE_TYPE_BYTE,
+		                    1,
+		                    FAKE_BUF_SZ,
+		                    FAKE_BUF_SZ,
+		                    FAKE_WAIT_TIME,
+		                    NULL);
   if(hP == INVALID_HANDLE_VALUE){
     warning("Invalid handle value : named pipe %s", pipename);
     return 1;
@@ -161,8 +161,21 @@ static int cheatMPImaster(void)
 
   /* mpiexec */
   fakemastercmd(cmd,sizeof(cmd)-1, pipename);
-  fakemaster_si.wShowWindow=SW_HIDE;
-  if(0 == CreateProcess(NULL, cmd, NULL, NULL, FALSE, CREATE_NEW_CONSOLE|NORMAL_PRIORITY_CLASS, NULL, NULL, &fakemaster_si, &fakemaster_pi)){
+  ZeroMemory(&fakemaster_si, sizeof(fakemaster_si))
+  fakemaster_si.cb = sizeof(si);
+  fakemaster_si.dwFlags = STARTF_USESHOWWINDOW;
+  fakemaster_si.wShowWindow = SW_SHOWMINIMIZED;
+
+  if(0 == CreateProcess(NULL,
+                        cmd,
+                        NULL,
+                        NULL,
+                        FALSE,
+                        CREATE_NEW_CONSOLE|NORMAL_PRIORITY_CLASS,
+                        NULL,
+                        NULL,
+                        &fakemaster_si,
+                        &fakemaster_pi)){
     char *msg;
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |FORMAT_MESSAGE_FROM_SYSTEM |FORMAT_MESSAGE_IGNORE_INSERTS,
 		  NULL,
