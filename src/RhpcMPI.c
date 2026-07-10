@@ -162,7 +162,7 @@ static int cheatMPImaster(void)
   /* mpiexec */
   fakemastercmd(cmd,sizeof(cmd)-1, pipename);
   ZeroMemory(&fakemaster_si, sizeof(fakemaster_si))
-  fakemaster_si.cb = sizeof(si);
+  fakemaster_si.cb = sizeof(fakemaster_si);
   fakemaster_si.dwFlags = STARTF_USESHOWWINDOW;
   fakemaster_si.wShowWindow = SW_SHOWMINIMIZED;
 
