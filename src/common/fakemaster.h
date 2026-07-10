@@ -20,4 +20,4 @@
 #define FAKE_BUF_SZ 8192
 #define FAKE_PATH_MAX 8192
 #define FAKE_WAIT_TIME 60000   /* ms */
-#define FAKE_DEFAULT_MPIEXEC "mpiexec -hide console -n 1"
+#define FAKE_DEFAULT_MPIEXEC "mpiexec -n 1"

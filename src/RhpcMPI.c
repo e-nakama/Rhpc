@@ -114,7 +114,7 @@ static void fakemastercmd(char *buf, size_t buf_sz, char *pipename)
     R_tryEval(op_ex, R_GlobalEnv, &errorOccurred);
     UNPROTECT(4);    
   }
-  snprintf(buf, buf_sz, "%s \"%s\" %s", mpiexeccmd, fakemaster, pipename); 
+  snprintf(buf, buf_sz, "\"%s\" \"%s\" %s", mpiexeccmd, fakemaster, pipename); 
   //MessageBox(NULL,buf,"CMD",MB_OK);
   UNPROTECT(2);
 }
@@ -161,7 +161,6 @@ static int cheatMPImaster(void)
 
   /* mpiexec */
   fakemastercmd(cmd,sizeof(cmd)-1, pipename);
-  ZeroMemory(&fakemaster_si, sizeof(fakemaster_si));
   fakemaster_si.cb = sizeof(fakemaster_si);
   fakemaster_si.dwFlags = STARTF_USESHOWWINDOW;
   fakemaster_si.wShowWindow = SW_SHOWMINIMIZED;
@@ -188,12 +187,20 @@ static int cheatMPImaster(void)
     warning(msg);
     LocalFree(msg);
     CloseHandle(hP);
+    hP = NULL;
     return 1;
+  }
+  else {
+    /* Close local handles returned by CreateProcess to avoid leaks
+       (the created process keeps running independently). */
+    if (fakemaster_pi.hProcess != NULL) CloseHandle(fakemaster_pi.hProcess);
+    if (fakemaster_pi.hThread  != NULL) CloseHandle(fakemaster_pi.hThread);
   }
   
   /* wait for fakemaster */
   if(!ConnectNamedPipe(hP, NULL)){
     CloseHandle(hP);
+    hP = NULL;
     warning("connection from fakemaster seems to have failed.");
     return 1;
   }
@@ -213,6 +220,7 @@ static int cheatMPImaster(void)
     warning(msg);
     LocalFree(msg);
     CloseHandle(hP);
+    hP = NULL;
     return 1;
   }
 
