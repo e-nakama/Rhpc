@@ -114,7 +114,7 @@ static void fakemastercmd(char *buf, size_t buf_sz, char *pipename)
     R_tryEval(op_ex, R_GlobalEnv, &errorOccurred);
     UNPROTECT(4);    
   }
-  snprintf(buf, buf_sz, "\"%s\" \"%s\" %s", mpiexeccmd, fakemaster, pipename); 
+  snprintf(buf, buf_sz, "%s \"%s\" %s", mpiexeccmd, fakemaster, pipename); 
   //MessageBox(NULL,buf,"CMD",MB_OK);
   UNPROTECT(2);
 }
