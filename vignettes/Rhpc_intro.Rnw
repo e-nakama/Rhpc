@@ -293,7 +293,7 @@ draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
 \subsubsection{Rhpc\_worker\_noback()}
 Worker execution that returns no results. Completes using only Collective communication (\texttt{MPI\_Bcast}).
 
-<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=4.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_worker_noback",
     list(
@@ -309,7 +309,7 @@ draw_rhpc_seq_diagram(
 \subsubsection{Rhpc\_Export()}
 Distributes variables to the global environment of all workers. Like \texttt{Rhpc\_worker\_noback}, it uses only \texttt{MPI\_Bcast}, but executes \texttt{assign()} on the workers. Bcast is repeated for each variable.
 
-<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=4.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_Export",
     list(
@@ -328,7 +328,7 @@ draw_rhpc_seq_diagram(
 Executes the same function on all workers and returns results to the master.
 Command distribution is Bcast, result size is Gather, and result bodies are P2P (Isend/Irecv).
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_worker_call",
     list(
@@ -349,7 +349,7 @@ draw_rhpc_seq_diagram(
 A wrapper for \texttt{Rhpc\_worker\_call(cl, eval, substitute(expr))}.
 The communication pattern is identical to \texttt{Rhpc\_worker\_call}.
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_EvalQ",
     list(
@@ -370,7 +370,7 @@ draw_rhpc_seq_diagram(
 Splits input \texttt{X} into chunks based on the number of workers, distributes the function via Bcast, and input chunks via P2P.
 Results are collected in completion order using \texttt{MPI\_Probe}/\texttt{MPI\_Irecv}, finally sending an exit signal via P2P.
 
-<<echo=TRUE, fig=TRUE, width=10, height=5>>=
+<<echo=FALSE, fig=TRUE, width=10, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_lapply",
     list(
@@ -396,7 +396,7 @@ draw_rhpc_seq_diagram(
 Broadcasts the function, but distributes inputs \textbf{element by element} to idle workers via P2P.
 Sends the next element as a worker finishes, and retrieves results sequentially via P2P.
 
-<<echo=TRUE, fig=TRUE, width=10, height=5.5>>=
+<<echo=FALSE, fig=TRUE, width=10, height=5.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_lapplyLB",
     list(
@@ -424,7 +424,7 @@ draw_rhpc_seq_diagram(
 \subsubsection{Rhpc\_setupRNG()}
 Automatically called within \texttt{Rhpc\_getHandle()}. Uses \texttt{Rhpc\_lapply} internally to distribute distinct random seeds to each worker via P2P (same communication pattern as \texttt{lapply}).
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_setupRNG (via Rhpc_lapply)",
     list(

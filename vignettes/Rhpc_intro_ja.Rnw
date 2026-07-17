@@ -300,7 +300,7 @@ draw_rhpc_seq_diagram <- function(title, events, nworkers = 3,
 \subsubsection{Rhpc\_worker\_noback()}
 結果を返さないワーカー実行。集団通信 (\texttt{MPI\_Bcast}) のみで完結します。
 
-<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=4.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_worker_noback",
     list(
@@ -317,7 +317,7 @@ draw_rhpc_seq_diagram(
 変数を全ワーカーのグローバル環境へ配布。\texttt{Rhpc\_worker\_noback} と同様 \texttt{MPI\_Bcast} のみですが、
 ワーカー側では \texttt{assign()} が実行されます。変数ごとに Bcast が繰り返されます。
 
-<<echo=TRUE, fig=TRUE, width=9, height=4.5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=4.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_Export",
     list(
@@ -336,7 +336,7 @@ draw_rhpc_seq_diagram(
 全ワーカーで同一関数を実行し、結果をマスターへ返します。
 命令配布は Bcast、結果サイズは Gather、結果本体は P2P (Isend/Irecv) です。
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_worker_call",
     list(
@@ -357,7 +357,7 @@ draw_rhpc_seq_diagram(
 \texttt{Rhpc\_worker\_call(cl, eval, substitute(expr))} のラッパーです。
 通信パターンは \texttt{Rhpc\_worker\_call} と同一です。
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_EvalQ",
     list(
@@ -378,7 +378,7 @@ draw_rhpc_seq_diagram(
 入力 \texttt{X} をワーカー数に応じてチャンク分割し、関数は Bcast、入力チャンクは P2P で配布します。
 結果は \texttt{MPI\_Probe}/\texttt{MPI\_Irecv} で完了順に回収し、最後に終了信号を P2P 送信します。
 
-<<echo=TRUE, fig=TRUE, width=10, height=5>>=
+<<echo=FALSE, fig=TRUE, width=10, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_lapply",
     list(
@@ -404,7 +404,7 @@ draw_rhpc_seq_diagram(
 関数は Bcast しますが、入力は \textbf{1要素ずつ} 空きワーカーへ P2P 配布します。
 ワーカーが完了するたびに次の要素を送り、結果も逐次 P2P で回収します。
 
-<<echo=TRUE, fig=TRUE, width=10, height=5.5>>=
+<<echo=FALSE, fig=TRUE, width=10, height=5.5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_lapplyLB",
     list(
@@ -433,7 +433,7 @@ draw_rhpc_seq_diagram(
 \texttt{Rhpc\_getHandle()} 内で自動呼び出されます。内部で \texttt{Rhpc\_lapply} を使い、
 各ワーカーへ異なる乱数シードを P2P 相当で配布します（\texttt{lapply} と同じ通信パターン）。
 
-<<echo=TRUE, fig=TRUE, width=9, height=5>>=
+<<echo=FALSE, fig=TRUE, width=9, height=5>>=
 draw_rhpc_seq_diagram(
     "Rhpc_setupRNG (via Rhpc_lapply)",
     list(
