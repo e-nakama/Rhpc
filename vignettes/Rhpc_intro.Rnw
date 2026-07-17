@@ -119,7 +119,7 @@ The basic principles for selection are as follows:
 \subsection{Communication Method Decision Flow}
 The following figure shows the flowchart of how Rhpc chooses the communication method for each operation.
 
-<<echo=TRUE, fig=TRUE, width=8, height=7>>=
+<<echo=FALSE, fig=TRUE, width=8, height=7>>=
 draw_comm_decision_flow <- function() {
     COL <- list(
         start   = "#E8F4FD",

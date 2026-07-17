@@ -126,7 +126,7 @@ options(oldoptions)
 \subsection{通信方式の選択フロー}
 次の図は、Rhpc が各操作でどの通信方式を選ぶかを示すフローチャートです。
 
-<<echo=TRUE, fig=TRUE, width=8, height=7>>=
+<<echo=FALSE, fig=TRUE, width=8, height=7>>=
 draw_comm_decision_flow <- function() {
     COL <- list(
         start   = "#E8F4FD",
