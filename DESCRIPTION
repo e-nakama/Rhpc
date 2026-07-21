@@ -1,6 +1,6 @@
 Package: Rhpc
-Version: 0.26.3
-Date: 2026-07-10
+Version: 0.26.4
+Date: 2026-07-21
 Title: Apply-Style Dispatch for High-Performance Computing
 Authors@R: c(person(given = "Ei-ji",
                     family = "Nakama",
@@ -26,4 +26,3 @@ ByteCompile: true
 NeedsCompilation: yes
 VignetteBuilder: utils
 BuildVignettes: true
-compact-vignettes: gs+qpdf

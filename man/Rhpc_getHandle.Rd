@@ -22,11 +22,4 @@ Rhpc_getHandle(procs = NA)
 \seealso{
   \code{\link{Rhpc_initialize}}, \code{\link{Rhpc_numberOfWorker}}, \code{\link{Rhpc_finalize}}
 }
-\examples{
-\donttest{
-#Rhpc_initialize()
-#cl <- Rhpc_getHandle(3)  # Create 5 worker processes dynamically
-#Rhpc_finalize()
-}
-}
 \keyword{utilities}
