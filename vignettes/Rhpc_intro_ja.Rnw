@@ -34,7 +34,7 @@ old_pdf_options <- grDevices::pdf.options(family="Japan1")
 \subsection{Linux / Unix}
 MPI ライブラリ（OpenMPI、MPICH2 など）が必要です。パッケージをビルドしてインストールします。
 \begin{verbatim}
-R CMD INSTALL Rhpc_0.26.1.tar.gz
+R CMD INSTALL Rhpc_0.26.5.tar.gz
 \end{verbatim}
 
 Fujitsu MPI など他の MPI 実装を使う場合は、\texttt{--configure-args} でコンパイル・リンクフラグを指定します。

@@ -10,7 +10,6 @@ Rhpc_setupRNG <- function(cl, iseed = NULL)
     options(Rhpc.oldseed = oldseed)
     
     oldkind <- RNGkind()
-    on.exit(do.call(RNGkind, as.list(oldkind)))
 
     RNGkind("L'Ecuyer-CMRG")
     if (!is.null(iseed)) set.seed(iseed)

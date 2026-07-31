@@ -27,7 +27,7 @@ Unlike standard parallel processing libraries that rely on sockets or fork, it p
 \subsection{Linux / Unix}
 An MPI library (e.g., OpenMPI, MPICH2) is required. Build and install the package:
 \begin{verbatim}
-R CMD INSTALL Rhpc_0.26.1.tar.gz
+R CMD INSTALL Rhpc_0.26.5.tar.gz
 \end{verbatim}
 
 If using other MPI implementations like Fujitsu MPI, specify compile and link flags with \texttt{--configure-args}.
